@@ -39,12 +39,11 @@ interface Factory3DProps {
   presentationMode?: boolean;
 }
 
-// ─── Color Helpers ────────────────────────────────────────────────────────────
+// ─── Status Color Helpers ─────────────────────────────────────────────────────
 
 function getStatusColor(status: string, isolated?: boolean): THREE.Color {
   if (isolated) return new THREE.Color('#ef4444');
-  const s = status.toLowerCase();
-  switch (s) {
+  switch (status.toLowerCase()) {
     case 'running':     return new THREE.Color('#22c55e');
     case 'warning':     return new THREE.Color('#eab308');
     case 'anomaly':     return new THREE.Color('#f97316');
@@ -62,8 +61,7 @@ function getStatusColor(status: string, isolated?: boolean): THREE.Color {
 
 function getStatusHex(status: string, isolated?: boolean): string {
   if (isolated) return '#ef4444';
-  const s = status.toLowerCase();
-  switch (s) {
+  switch (status.toLowerCase()) {
     case 'running':     return '#22c55e';
     case 'warning':     return '#eab308';
     case 'anomaly':     return '#f97316';
@@ -85,7 +83,7 @@ function isMachineActive(status: string, isolated?: boolean): boolean {
   return s === 'running' || s === 'warning' || s === 'bottleneck' || s === 'testing' || s === 'recovered';
 }
 
-// ─── Machine Configurations ───────────────────────────────────────────────────
+// ─── Machine Layout Configuration ─────────────────────────────────────────────
 
 const MACHINE_CONFIGS = [
   { id: 'M1', name: 'Cutting',       xPos: -8, defaultColor: '#1e3a5f' },
@@ -95,122 +93,456 @@ const MACHINE_CONFIGS = [
   { id: 'M5', name: 'Packaging',     xPos:  8, defaultColor: '#1e3a5f' },
 ];
 
-// ─── Factory Floor & Structural Elements ──────────────────────────────────────
+// ─── High-Detail Factory Building & Architecture ──────────────────────────────
 
-function FactoryEnvironment() {
+function FactoryArchitecture() {
   return (
     <group>
-      {/* Primary concrete floor with safety reflective coating */}
+      {/* ── Main Concrete Epoxy Factory Floor ── */}
       <mesh position={[0, -0.05, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[34, 18]} />
-        <meshStandardMaterial color="#080e1a" roughness={0.7} metalness={0.25} />
+        <planeGeometry args={[44, 26]} />
+        <meshStandardMaterial color="#0b1120" roughness={0.65} metalness={0.3} />
       </mesh>
 
-      {/* Industrial Grid floor overlay */}
-      <gridHelper args={[34, 34, '#1e293b', '#0f172a']} position={[0, 0.001, 0]} />
+      {/* Industrial Sub-Grid Floor overlay */}
+      <gridHelper args={[44, 44, '#1e293b', '#0f172a']} position={[0, 0.001, 0]} />
 
-      {/* Safety Yellow Demarcation Lanes along conveyor */}
-      <mesh position={[0, 0.002, 1.4]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[26, 0.08]} />
-        <meshBasicMaterial color="#eab308" transparent opacity={0.7} />
+      {/* Safety Yellow Hazard Walkway Striping */}
+      {/* Main conveyor corridor safety boundary lines */}
+      <mesh position={[0, 0.002, 2.0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[30, 0.1]} />
+        <meshBasicMaterial color="#eab308" transparent opacity={0.8} />
       </mesh>
-      <mesh position={[0, 0.002, -1.4]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[26, 0.08]} />
-        <meshBasicMaterial color="#eab308" transparent opacity={0.7} />
+      <mesh position={[0, 0.002, -2.0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[30, 0.1]} />
+        <meshBasicMaterial color="#eab308" transparent opacity={0.8} />
       </mesh>
 
-      {/* Production Input Staging Area (Loading Bay on Left) */}
-      <group position={[-11.8, 0, 0]}>
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[2.4, 2.2]} />
-          <meshBasicMaterial color="#10b981" transparent opacity={0.15} />
+      {/* Crosswalk hatch lines for personnel */}
+      {[-10, -5, 0, 5, 10].map((x) => (
+        <group key={x} position={[x, 0.002, 2.8]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[1.2, 1.4]} />
+            <meshBasicMaterial color="#eab308" transparent opacity={0.25} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* ── Perimeter Industrial Walls & Columns ── */}
+      {/* Rear Wall */}
+      <mesh position={[0, 4.5, -12.5]} receiveShadow>
+        <boxGeometry args={[44, 9, 0.4]} />
+        <meshStandardMaterial color="#090f1d" roughness={0.85} metalness={0.2} />
+      </mesh>
+      {/* Left Wall */}
+      <mesh position={[-21.8, 4.5, 0]} receiveShadow>
+        <boxGeometry args={[0.4, 9, 25]} />
+        <meshStandardMaterial color="#090f1d" roughness={0.85} metalness={0.2} />
+      </mesh>
+      {/* Right Wall */}
+      <mesh position={[21.8, 4.5, 0]} receiveShadow>
+        <boxGeometry args={[0.4, 9, 25]} />
+        <meshStandardMaterial color="#090f1d" roughness={0.85} metalness={0.2} />
+      </mesh>
+
+      {/* Heavy Structural Steel I-Beam Columns along Perimeter */}
+      {[-20, -12, -4, 4, 12, 20].map((x) => (
+        <group key={`col-rear-${x}`} position={[x, 4.5, -12.2]}>
+          {/* Main vertical column */}
+          <mesh castShadow>
+            <boxGeometry args={[0.5, 9, 0.5]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+          </mesh>
+          {/* Concrete footing */}
+          <mesh position={[0, -4.2, 0]}>
+            <boxGeometry args={[0.9, 0.6, 0.9]} />
+            <meshStandardMaterial color="#334155" roughness={0.9} />
+          </mesh>
+          {/* Hazard stripes on column base */}
+          <mesh position={[0, -3.2, 0.26]}>
+            <planeGeometry args={[0.5, 1.2]} />
+            <meshBasicMaterial color="#eab308" transparent opacity={0.6} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* ── High-Ceiling Overhead Steel Trusses & Industrial Crane Gantry ── */}
+      <group position={[0, 8.2, 0]}>
+        {/* Longitudinal Crane Runway Beams */}
+        <mesh position={[0, 0, -6]}>
+          <boxGeometry args={[43, 0.35, 0.35]} />
+          <meshStandardMaterial color="#eab308" metalness={0.7} roughness={0.3} />
         </mesh>
-        <mesh position={[0, 0.4, -0.6]}>
-          <boxGeometry args={[1.0, 0.8, 0.8]} />
-          <meshStandardMaterial color="#334155" roughness={0.8} />
+        <mesh position={[0, 0, 6]}>
+          <boxGeometry args={[43, 0.35, 0.35]} />
+          <meshStandardMaterial color="#eab308" metalness={0.7} roughness={0.3} />
         </mesh>
-        <mesh position={[0, 0.25, 0.5]}>
-          <boxGeometry args={[0.9, 0.5, 0.7]} />
-          <meshStandardMaterial color="#475569" roughness={0.8} />
+
+        {/* Overhead Bridge Crane Gantry spanning across factory */}
+        <group position={[-2, 0, 0]}>
+          <mesh position={[0, 0.2, 0]}>
+            <boxGeometry args={[1.2, 0.4, 12.2]} />
+            <meshStandardMaterial color="#eab308" metalness={0.8} roughness={0.25} />
+          </mesh>
+          {/* Crane Hoist Trolley */}
+          <mesh position={[0, -0.2, -1.5]} castShadow>
+            <boxGeometry args={[0.8, 0.6, 0.8]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+
+        {/* Overhead Steel Cross Trusses */}
+        {[-16, -8, 0, 8, 16].map((x) => (
+          <group key={`truss-${x}`} position={[x, 0.4, 0]}>
+            <mesh>
+              <boxGeometry args={[0.2, 0.25, 24]} />
+              <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+            </mesh>
+          </group>
+        ))}
+
+        {/* Overhead Industrial Ventilation Ductwork */}
+        <mesh position={[0, 0.2, -8.5]}>
+          <cylinderGeometry args={[0.5, 0.5, 42, 12]} />
+          <meshStandardMaterial color="#64748b" metalness={0.85} roughness={0.25} />
         </mesh>
-        <Text position={[0, 1.4, 0]} fontSize={0.28} color="#10b981" anchorX="center" anchorY="middle">
-          INPUT STAGING
-        </Text>
       </group>
 
-      {/* Production Output Dispatch Area (Right) */}
-      <group position={[11.8, 0, 0]}>
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[2.4, 2.2]} />
-          <meshBasicMaterial color="#06b6d4" transparent opacity={0.15} />
-        </mesh>
-        <mesh position={[0, 0.5, -0.4]}>
-          <boxGeometry args={[1.1, 1.0, 0.8]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.7} />
-        </mesh>
-        <mesh position={[0, 0.3, 0.5]}>
-          <boxGeometry args={[0.8, 0.6, 0.7]} />
-          <meshStandardMaterial color="#334155" roughness={0.7} />
-        </mesh>
-        <Text position={[0, 1.4, 0]} fontSize={0.28} color="#06b6d4" anchorX="center" anchorY="middle">
-          OUTPUT DISPATCH
-        </Text>
-      </group>
+      {/* ── High-Bay Factory LED Overhead Floodlights ── */}
+      {[-12, -4, 4, 12].map((x) => (
+        <group key={`light-${x}`} position={[x, 7.8, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.4, 0.5, 0.2, 12]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.8} />
+          </mesh>
+          <mesh position={[0, -0.12, 0]}>
+            <circleGeometry args={[0.38, 12]} />
+            <meshBasicMaterial color="#e0f2fe" />
+          </mesh>
+          <pointLight position={[0, -0.5, 0]} intensity={0.6} color="#e0f2fe" distance={16} decay={2} />
+        </group>
+      ))}
 
-      {/* Autonomous Maintenance Bay (Rear Center) */}
-      <group position={[0, 0, 3.8]}>
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[4.2, 2.4]} />
-          <meshBasicMaterial color="#a855f7" transparent opacity={0.15} />
-        </mesh>
-        {/* Maintenance Bay Dock Frame */}
-        <mesh position={[0, 0.1, 0]}>
-          <boxGeometry args={[3.8, 0.15, 2.0]} />
-          <meshStandardMaterial color="#1e1b4b" roughness={0.5} metalness={0.4} />
-        </mesh>
-        <mesh position={[0, 1.2, -0.9]}>
-          <boxGeometry args={[2.4, 0.8, 0.2]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.3} metalness={0.8} />
-        </mesh>
-        <Text position={[0, 1.8, -0.8]} fontSize={0.24} color="#a855f7" anchorX="center" anchorY="middle">
-          AUTONOMOUS MAINTENANCE BAY
-        </Text>
-      </group>
-
-      {/* Overhead Industrial Gantry & Lighting Trusses */}
-      <group position={[0, 5.2, 0]}>
+      {/* ── Raised Mezzanine: AI Operations & Control Room ── */}
+      <group position={[0, 2.6, -11.0]}>
+        {/* Mezzanine Deck Floor */}
         <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[28, 0.15, 0.15]} />
-          <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+          <boxGeometry args={[14, 0.25, 2.6]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
         </mesh>
-        <mesh position={[0, 0, 2.5]}>
-          <boxGeometry args={[28, 0.15, 0.15]} />
-          <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
-        </mesh>
-        {/* Cross struts */}
-        {[-10, -5, 0, 5, 10].map((x) => (
-          <mesh key={x} position={[x, 0, 1.25]}>
-            <boxGeometry args={[0.12, 0.12, 2.5]} />
+        {/* Support Steel Posts */}
+        {[-6, -2, 2, 6].map((x) => (
+          <mesh key={x} position={[x, -1.3, 1.2]}>
+            <cylinderGeometry args={[0.08, 0.08, 2.6, 8]} />
             <meshStandardMaterial color="#475569" metalness={0.8} />
           </mesh>
         ))}
+        {/* Observation Glass Balcony Railing */}
+        <mesh position={[0, 0.6, 1.25]}>
+          <boxGeometry args={[13.8, 0.9, 0.06]} />
+          <meshStandardMaterial color="#06b6d4" transparent opacity={0.35} roughness={0.1} />
+        </mesh>
+        {/* Top Railing Handrail */}
+        <mesh position={[0, 1.05, 1.25]}>
+          <boxGeometry args={[14, 0.08, 0.1]} />
+          <meshStandardMaterial color="#64748b" metalness={0.9} />
+        </mesh>
+        {/* Control Room Console Terminals */}
+        <mesh position={[0, 0.45, 0.3]}>
+          <boxGeometry args={[3.2, 0.6, 0.8]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.7} />
+        </mesh>
+        {/* Large Holographic Operations Banner */}
+        <Text position={[0, 1.8, 0.3]} fontSize={0.32} color="#38bdf8" anchorX="center" anchorY="middle">
+          AI OPERATIONS CENTER — JARVIS SI-02
+        </Text>
       </group>
     </group>
   );
 }
 
-// ─── Conveyor Belt & Dynamic Part Flow ────────────────────────────────────────
+// ─── Warehouse & Material Storage Area ────────────────────────────────────────
 
-interface ConveyorWithFlowProps {
+function WarehouseStorageZones() {
+  return (
+    <group>
+      {/* ── RAW MATERIAL INVENTORY (LEFT ZONE: X = -16) ── */}
+      <group position={[-16, 0, 0]}>
+        {/* Storage Bay Floor Zone */}
+        <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[6.5, 14]} />
+          <meshBasicMaterial color="#10b981" transparent opacity={0.1} />
+        </mesh>
+        <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[6.3, 13.8]} />
+          <meshBasicMaterial color="#059669" wireframe />
+        </mesh>
+
+        {/* Industrial High-Bay Pallet Racks (2 Racks) */}
+        {[-3.5, 3.5].map((z, rackIdx) => (
+          <group key={rackIdx} position={[0, 0, z]}>
+            {/* Orange/Blue Structural Upright Frames */}
+            {[-2.2, 0, 2.2].map((x) => (
+              <group key={x} position={[x, 2.4, 0]}>
+                <mesh>
+                  <boxGeometry args={[0.12, 4.8, 1.4]} />
+                  <meshStandardMaterial color="#1e40af" metalness={0.7} roughness={0.3} />
+                </mesh>
+              </group>
+            ))}
+            {/* Horizontal Heavy Load Beams (3 Tiers) */}
+            {[0.8, 2.4, 4.0].map((y, tier) => (
+              <group key={tier} position={[0, y, 0]}>
+                <mesh position={[0, 0, 0.65]}>
+                  <boxGeometry args={[4.6, 0.12, 0.08]} />
+                  <meshStandardMaterial color="#ea580c" metalness={0.6} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0, -0.65]}>
+                  <boxGeometry args={[4.6, 0.12, 0.08]} />
+                  <meshStandardMaterial color="#ea580c" metalness={0.6} roughness={0.3} />
+                </mesh>
+
+                {/* Pallets and Material Boxes on Shelf */}
+                {[-1.2, 1.2].map((bx) => (
+                  <group key={bx} position={[bx, 0.22, 0]}>
+                    {/* Wooden Pallet */}
+                    <mesh>
+                      <boxGeometry args={[1.2, 0.1, 1.0]} />
+                      <meshStandardMaterial color="#78350f" roughness={0.9} />
+                    </mesh>
+                    {/* Stored Cargo Crates */}
+                    <mesh position={[0, 0.28, 0]}>
+                      <boxGeometry args={[0.9, 0.45, 0.8]} />
+                      <meshStandardMaterial
+                        color={tier === 0 ? '#38bdf8' : tier === 1 ? '#34d399' : '#818cf8'}
+                        roughness={0.6}
+                      />
+                    </mesh>
+                  </group>
+                ))}
+              </group>
+            ))}
+          </group>
+        ))}
+
+        {/* Digital Signboard */}
+        <Text position={[0, 5.4, 0]} fontSize={0.35} color="#10b981" anchorX="center" anchorY="middle">
+          RAW MATERIAL INVENTORY
+        </Text>
+        <Text position={[0, 5.0, 0]} fontSize={0.2} color="#94a3b8" anchorX="center" anchorY="middle">
+          AUTOMATED STAGING BAYS 1–4
+        </Text>
+      </group>
+
+      {/* ── FINISHED GOODS WAREHOUSE & DISPATCH (RIGHT ZONE: X = 16) ── */}
+      <group position={[16, 0, 0]}>
+        {/* Floor Demarcation */}
+        <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[6.5, 14]} />
+          <meshBasicMaterial color="#06b6d4" transparent opacity={0.1} />
+        </mesh>
+        <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[6.3, 13.8]} />
+          <meshBasicMaterial color="#0891b2" wireframe />
+        </mesh>
+
+        {/* 2 Pallet Racks with Finished Goods Packaging */}
+        {[-3.5, 3.5].map((z, rackIdx) => (
+          <group key={rackIdx} position={[0, 0, z]}>
+            {[-2.2, 0, 2.2].map((x) => (
+              <mesh key={x} position={[x, 2.4, 0]}>
+                <boxGeometry args={[0.12, 4.8, 1.4]} />
+                <meshStandardMaterial color="#1e40af" metalness={0.7} roughness={0.3} />
+              </mesh>
+            ))}
+            {[0.8, 2.4, 4.0].map((y, tier) => (
+              <group key={tier} position={[0, y, 0]}>
+                <mesh position={[0, 0, 0.65]}>
+                  <boxGeometry args={[4.6, 0.12, 0.08]} />
+                  <meshStandardMaterial color="#ea580c" metalness={0.6} />
+                </mesh>
+                <mesh position={[0, 0, -0.65]}>
+                  <boxGeometry args={[4.6, 0.12, 0.08]} />
+                  <meshStandardMaterial color="#ea580c" metalness={0.6} />
+                </mesh>
+                {[-1.2, 1.2].map((bx) => (
+                  <group key={bx} position={[bx, 0.25, 0]}>
+                    <mesh>
+                      <boxGeometry args={[1.2, 0.1, 1.0]} />
+                      <meshStandardMaterial color="#78350f" roughness={0.9} />
+                    </mesh>
+                    <mesh position={[0, 0.32, 0]}>
+                      <boxGeometry args={[0.95, 0.55, 0.85]} />
+                      <meshStandardMaterial color="#cbd5e1" metalness={0.3} roughness={0.4} />
+                    </mesh>
+                  </group>
+                ))}
+              </group>
+            ))}
+          </group>
+        ))}
+
+        <Text position={[0, 5.4, 0]} fontSize={0.35} color="#06b6d4" anchorX="center" anchorY="middle">
+          FINISHED GOODS WAREHOUSE
+        </Text>
+        <Text position={[0, 5.0, 0]} fontSize={0.2} color="#94a3b8" anchorX="center" anchorY="middle">
+          PALLETIZED DISPATCH ZONE
+        </Text>
+      </group>
+
+      {/* ── AUTONOMOUS MAINTENANCE & SERVICE BAY (REAR: X = 0, Z = 6.0) ── */}
+      <group position={[0, 0, 6.0]}>
+        <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[7.5, 3.8]} />
+          <meshBasicMaterial color="#a855f7" transparent opacity={0.15} />
+        </mesh>
+        {/* Dock Frame Platform */}
+        <mesh position={[0, 0.1, 0]}>
+          <boxGeometry args={[6.8, 0.18, 3.2]} />
+          <meshStandardMaterial color="#1e1b4b" metalness={0.7} roughness={0.3} />
+        </mesh>
+        {/* Tool Cabinets and Oil Barrels */}
+        <mesh position={[-2.4, 0.7, -1.0]}>
+          <boxGeometry args={[1.2, 1.2, 0.6]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} />
+        </mesh>
+        <mesh position={[2.4, 0.5, -1.0]}>
+          <cylinderGeometry args={[0.35, 0.35, 0.9, 12]} />
+          <meshStandardMaterial color="#1e3a5f" metalness={0.8} />
+        </mesh>
+        <Text position={[0, 2.2, -1.0]} fontSize={0.3} color="#c084fc" anchorX="center" anchorY="middle">
+          AUTONOMOUS ROBOTICS MAINTENANCE STATION
+        </Text>
+      </group>
+    </group>
+  );
+}
+
+// ─── Autonomous Guided Vehicles (AGVs) ────────────────────────────────────────
+
+function AGVFleet({ hasFailure }: { hasFailure: boolean }) {
+  const agv1Ref = useRef<THREE.Group>(null);
+  const agv2Ref = useRef<THREE.Group>(null);
+  const pathT1 = useRef(0);
+  const pathT2 = useRef(Math.PI);
+
+  useFrame((_, delta) => {
+    // Normal speed unless factory failure forces cautionary patrol
+    const speed = hasFailure ? 0.35 : 0.7;
+
+    pathT1.current += delta * speed;
+    pathT2.current += delta * speed;
+
+    if (agv1Ref.current) {
+      // Loop between Raw Material Inventory and Input conveyor
+      const x = -13 + Math.sin(pathT1.current) * 3.5;
+      const z = 4.5 + Math.cos(pathT1.current) * 2.0;
+      agv1Ref.current.position.set(x, 0, z);
+      agv1Ref.current.rotation.y = Math.atan2(Math.cos(pathT1.current), -Math.sin(pathT1.current));
+    }
+
+    if (agv2Ref.current) {
+      // Loop between Output conveyor and Finished Goods
+      const x = 13 + Math.sin(pathT2.current) * 3.5;
+      const z = 4.5 + Math.cos(pathT2.current) * 2.0;
+      agv2Ref.current.position.set(x, 0, z);
+      agv2Ref.current.rotation.y = Math.atan2(Math.cos(pathT2.current), -Math.sin(pathT2.current));
+    }
+  });
+
+  return (
+    <group>
+      {/* ── Glowing AGV Floor Guide Paths ── */}
+      <mesh position={[-13, 0.003, 4.5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.0, 2.08, 32]} />
+        <meshBasicMaterial color={hasFailure ? '#f97316' : '#10b981'} transparent opacity={0.6} />
+      </mesh>
+      <mesh position={[13, 0.003, 4.5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.0, 2.08, 32]} />
+        <meshBasicMaterial color={hasFailure ? '#f97316' : '#06b6d4'} transparent opacity={0.6} />
+      </mesh>
+
+      {/* ── AGV Unit 1 (Raw Material Transfer) ── */}
+      <group ref={agv1Ref} position={[-13, 0, 4.5]}>
+        {/* Chassis */}
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <boxGeometry args={[1.2, 0.35, 0.8]} />
+          <meshStandardMaterial color="#f59e0b" metalness={0.6} roughness={0.4} />
+        </mesh>
+        {/* Wheels */}
+        {[-0.45, 0.45].map((x) => (
+          <group key={x}>
+            <mesh position={[x, 0.12, 0.42]}>
+              <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+              <meshStandardMaterial color="#0f172a" roughness={0.9} />
+            </mesh>
+            <mesh position={[x, 0.12, -0.42]}>
+              <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+              <meshStandardMaterial color="#0f172a" roughness={0.9} />
+            </mesh>
+          </group>
+        ))}
+        {/* LiDAR Dome */}
+        <mesh position={[0.45, 0.42, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.1, 12]} />
+          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={1} />
+        </mesh>
+        {/* Cargo Container */}
+        <mesh position={[-0.1, 0.5, 0]}>
+          <boxGeometry args={[0.7, 0.35, 0.6]} />
+          <meshStandardMaterial color="#38bdf8" roughness={0.5} />
+        </mesh>
+        <Text position={[0, 0.8, 0]} fontSize={0.14} color="#f8fafc" anchorX="center" anchorY="middle">
+          AGV-01
+        </Text>
+      </group>
+
+      {/* ── AGV Unit 2 (Finished Product Transfer) ── */}
+      <group ref={agv2Ref} position={[13, 0, 4.5]}>
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <boxGeometry args={[1.2, 0.35, 0.8]} />
+          <meshStandardMaterial color="#3b82f6" metalness={0.6} roughness={0.4} />
+        </mesh>
+        {[-0.45, 0.45].map((x) => (
+          <group key={x}>
+            <mesh position={[x, 0.12, 0.42]}>
+              <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+              <meshStandardMaterial color="#0f172a" roughness={0.9} />
+            </mesh>
+            <mesh position={[x, 0.12, -0.42]}>
+              <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+              <meshStandardMaterial color="#0f172a" roughness={0.9} />
+            </mesh>
+          </group>
+        ))}
+        <mesh position={[0.45, 0.42, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.1, 12]} />
+          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={1} />
+        </mesh>
+        <mesh position={[-0.1, 0.5, 0]}>
+          <boxGeometry args={[0.7, 0.35, 0.6]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.5} />
+        </mesh>
+        <Text position={[0, 0.8, 0]} fontSize={0.14} color="#f8fafc" anchorX="center" anchorY="middle">
+          AGV-02
+        </Text>
+      </group>
+    </group>
+  );
+}
+
+// ─── Heavy Modular Production Conveyor & Parts Flow ───────────────────────────
+
+interface ConveyorLineProps {
   machines: MachineData[];
   animate: boolean;
 }
 
-function ConveyorWithFlow({ machines, animate }: ConveyorWithFlowProps) {
-  const stripeOffset = useRef(0);
-  const stripesGroup = useRef<THREE.Group>(null);
+function ConveyorLine({ machines, animate }: ConveyorLineProps) {
+  const rollerOffset = useRef(0);
+  const rollersRef = useRef<THREE.Group>(null);
 
-  // Check if any machine is blocking conveyor flow
+  // Check if any machine is isolated or malfunctioning
   const blockedMachine = machines.find((m) => m.isolated || m.status === 'malfunction' || m.status === 'offline');
   const blockedX = blockedMachine
     ? (MACHINE_CONFIGS.find((c) => c.id === blockedMachine.id)?.xPos ?? null)
@@ -218,79 +550,85 @@ function ConveyorWithFlow({ machines, animate }: ConveyorWithFlowProps) {
 
   useFrame((_, delta) => {
     if (!animate) return;
-    stripeOffset.current = (stripeOffset.current + delta * 1.6) % 2;
-    if (stripesGroup.current) {
-      stripesGroup.current.position.x = stripeOffset.current - 1;
+    rollerOffset.current = (rollerOffset.current + delta * 1.8) % 0.8;
+    if (rollersRef.current) {
+      rollersRef.current.position.x = rollerOffset.current;
     }
   });
 
-  const stripes = useMemo(() => {
+  // Rollers across the conveyor
+  const rollerXList = useMemo(() => {
     const list: number[] = [];
-    for (let x = -13; x <= 13; x += 1.8) list.push(x);
+    for (let x = -13; x <= 13; x += 0.8) list.push(x);
     return list;
   }, []);
 
-  // Moving payload parts along the conveyor
+  // Moving payload parts with trays
   const partItems = useMemo(
     () => [
-      { id: 0, baseX: -11.0, color: '#38bdf8' },
-      { id: 1, baseX: -7.5,  color: '#818cf8' },
-      { id: 2, baseX: -4.8,  color: '#c084fc' },
-      { id: 3, baseX: -1.2,  color: '#34d399' },
-      { id: 4, baseX:  2.5,  color: '#fbbf24' },
-      { id: 5, baseX:  6.0,  color: '#38bdf8' },
-      { id: 6, baseX:  9.5,  color: '#34d399' },
+      { id: 0, startX: -11.5, type: 'raw',       color: '#38bdf8' },
+      { id: 1, startX:  -9.0, type: 'cut',       color: '#818cf8' },
+      { id: 2, startX:  -6.2, type: 'pre_drill', color: '#c084fc' },
+      { id: 3, startX:  -2.2, type: 'drilled',   color: '#34d399' },
+      { id: 4, startX:   1.8, type: 'assembled', color: '#fbbf24' },
+      { id: 5, startX:   5.8, type: 'inspected', color: '#38bdf8' },
+      { id: 6, startX:   9.8, type: 'packaged',  color: '#cbd5e1' },
     ],
     []
   );
 
   return (
     <group>
-      {/* Belt base structure */}
-      <mesh position={[0, 0.12, 0]} receiveShadow>
-        <boxGeometry args={[24, 0.2, 1.4]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.8} metalness={0.4} />
+      {/* Conveyor Bed Structure */}
+      <mesh position={[0, 0.16, 0]} receiveShadow>
+        <boxGeometry args={[26, 0.24, 1.5]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.8} metalness={0.5} />
       </mesh>
 
-      {/* Side guard rails */}
-      <mesh position={[0, 0.28, 0.72]}>
-        <boxGeometry args={[24, 0.12, 0.08]} />
-        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+      {/* Industrial Side Guide Rails */}
+      <mesh position={[0, 0.35, 0.78]}>
+        <boxGeometry args={[26, 0.16, 0.08]} />
+        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.25} />
       </mesh>
-      <mesh position={[0, 0.28, -0.72]}>
-        <boxGeometry args={[24, 0.12, 0.08]} />
-        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+      <mesh position={[0, 0.35, -0.78]}>
+        <boxGeometry args={[26, 0.16, 0.08]} />
+        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.25} />
       </mesh>
 
-      {/* Moving belt surface treads */}
-      <group ref={stripesGroup}>
-        {stripes.map((x) => (
-          <mesh key={x} position={[x, 0.23, 0]}>
-            <boxGeometry args={[0.5, 0.02, 1.25]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.9} />
+      {/* Rotating Rollers */}
+      <group ref={rollersRef}>
+        {rollerXList.map((x) => (
+          <mesh key={x} position={[x, 0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 1.45, 12]} />
+            <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
           </mesh>
         ))}
       </group>
 
-      {/* Conveyor Support Pillars */}
-      {[-10, -5, 0, 5, 10].map((x) => (
+      {/* Conveyor Drive Motors & Support Legs */}
+      {[-11, -6, 0, 6, 11].map((x) => (
         <group key={x} position={[x, 0, 0]}>
-          <mesh position={[0, 0.06, 0.65]}>
-            <cylinderGeometry args={[0.06, 0.08, 0.24, 8]} />
+          <mesh position={[0, 0.08, 0.7]}>
+            <cylinderGeometry args={[0.06, 0.08, 0.32, 8]} />
             <meshStandardMaterial color="#334155" metalness={0.7} />
           </mesh>
-          <mesh position={[0, 0.06, -0.65]}>
-            <cylinderGeometry args={[0.06, 0.08, 0.24, 8]} />
+          <mesh position={[0, 0.08, -0.7]}>
+            <cylinderGeometry args={[0.06, 0.08, 0.32, 8]} />
             <meshStandardMaterial color="#334155" metalness={0.7} />
+          </mesh>
+          {/* Geared Electric Motor */}
+          <mesh position={[0, 0.18, 0.95]}>
+            <boxGeometry args={[0.5, 0.25, 0.35]} />
+            <meshStandardMaterial color="#1e3a5f" metalness={0.7} />
           </mesh>
         </group>
       ))}
 
-      {/* Flowing Industrial Parts */}
+      {/* Moving Industrial Payload Products with Smart Queueing */}
       {partItems.map((part) => (
-        <ConveyorPart
+        <ConveyorPayload
           key={part.id}
-          baseX={part.baseX}
+          startX={part.startX}
           color={part.color}
           blockedX={blockedX}
           animate={animate}
@@ -300,64 +638,403 @@ function ConveyorWithFlow({ machines, animate }: ConveyorWithFlowProps) {
   );
 }
 
-interface ConveyorPartProps {
-  baseX: number;
+function ConveyorPayload({
+  startX,
+  color,
+  blockedX,
+  animate,
+}: {
+  startX: number;
   color: string;
   blockedX: number | null;
   animate: boolean;
-}
-
-function ConveyorPart({ baseX, color, blockedX, animate }: ConveyorPartProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const currentX = useRef(baseX);
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const currentX = useRef(startX);
 
   useFrame((_, delta) => {
-    if (!meshRef.current || !animate) return;
+    if (!ref.current || !animate) return;
 
-    // Movement speed
     let speed = 1.6;
 
     // If an upstream machine is isolated/blocked, queue parts just before it
     if (blockedX !== null) {
-      const distToBlock = blockedX - currentX.current;
-      if (distToBlock > 0 && distToBlock < 2.0) {
-        speed = Math.max(0, distToBlock * 0.4 - 0.2);
+      const dist = blockedX - currentX.current;
+      if (dist > 0 && dist < 2.4) {
+        speed = Math.max(0, dist * 0.45 - 0.25);
       }
     }
 
     currentX.current += delta * speed;
-    if (currentX.current > 11.5) {
-      currentX.current = -11.5;
+    if (currentX.current > 12.5) {
+      currentX.current = -12.5;
     }
 
-    meshRef.current.position.x = currentX.current;
+    ref.current.position.x = currentX.current;
   });
 
   return (
-    <mesh ref={meshRef} position={[baseX, 0.38, 0]} castShadow>
-      <boxGeometry args={[0.42, 0.28, 0.42]} />
-      <meshStandardMaterial color={color} metalness={0.3} roughness={0.4} />
-    </mesh>
+    <group ref={ref} position={[startX, 0.44, 0]}>
+      {/* Component Machining Carrier Tray */}
+      <mesh position={[0, -0.04, 0]} castShadow>
+        <boxGeometry args={[0.55, 0.05, 0.55]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+      </mesh>
+      {/* Machined Metallic Component Part */}
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <cylinderGeometry args={[0.18, 0.2, 0.25, 12]} />
+        <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
+      </mesh>
+    </group>
   );
 }
 
-// ─── 3D Safety Isolation Barrier ──────────────────────────────────────────────
+// ─── High-Detail Industrial Machines ──────────────────────────────────────────
 
-interface SafetyBarrierProps {
-  xPos: number;
-  active: boolean;
-  reason?: string | null;
+interface MachineViewProps {
+  status: string;
+  isolated?: boolean;
+  selected: boolean;
+  onClick: () => void;
 }
 
-function SafetyIsolationBarrier({ xPos, active, reason }: SafetyBarrierProps) {
-  const laserRef = useRef<THREE.Mesh>(null);
+// ── M1: INDUSTRIAL CUTTING CELL ──────────────────────────────────────────────
+function CuttingStation({ status, isolated, selected, onClick }: MachineViewProps) {
+  const bladeRef = useRef<THREE.Mesh>(null);
+  const active = isMachineActive(status, isolated);
+  const color = getStatusColor(status, isolated);
+
+  useFrame((_, delta) => {
+    if (bladeRef.current && active) {
+      bladeRef.current.rotation.y += delta * 14;
+    }
+  });
+
+  return (
+    <group onClick={onClick}>
+      {/* Heavy Base Casting */}
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <boxGeometry args={[1.7, 1.0, 1.4]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Upper Safety Glass Enclosure Frame */}
+      <mesh position={[0, 1.35, 0]}>
+        <boxGeometry args={[1.8, 0.8, 1.5]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.8} />
+      </mesh>
+      {/* Tinted Safety Glass Window */}
+      <mesh position={[0, 1.35, 0.76]}>
+        <planeGeometry args={[1.6, 0.7]} />
+        <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
+      </mesh>
+      {/* Overhead Cutting Gantry and Motor */}
+      <mesh position={[0, 1.85, 0]}>
+        <boxGeometry args={[1.2, 0.35, 0.8]} />
+        <meshStandardMaterial color="#334155" metalness={0.9} />
+      </mesh>
+      {/* High-Speed Diamond Carbide Saw Blade */}
+      <mesh ref={bladeRef} position={[0, 1.5, 0]}>
+        <cylinderGeometry args={[0.42, 0.42, 0.04, 24]} />
+        <meshStandardMaterial color="#e2e8f0" metalness={0.95} roughness={0.1} />
+      </mesh>
+      {/* Laser Cut Guide Beam */}
+      {active && (
+        <mesh position={[0, 1.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.02, 1.2]} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.8} />
+        </mesh>
+      )}
+      {/* Operator Touchscreen Panel */}
+      <mesh position={[0.7, 1.2, 0.85]} rotation={[-0.2, 0.3, 0]}>
+        <boxGeometry args={[0.35, 0.25, 0.06]} />
+        <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.5} />
+      </mesh>
+      {/* Status Light Tower */}
+      <mesh position={[0.7, 2.05, -0.6]}>
+        <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
+        <meshStandardMaterial color="#475569" />
+      </mesh>
+      <mesh position={[0.7, 2.25, -0.6]}>
+        <sphereGeometry args={[0.08, 12, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ── M2: INDUSTRIAL CNC DRILLING STATION (HERO MALFUNCTION MACHINE) ───────────
+function DrillingStation({ status, isolated, selected, onClick }: MachineViewProps) {
+  const spindleRef = useRef<THREE.Group>(null);
+  const jitterRef = useRef<THREE.Group>(null);
+  const active = isMachineActive(status, isolated);
+  const color = getStatusColor(status, isolated);
+
+  const isAnomaly = status.toLowerCase() === 'anomaly' || status.toLowerCase() === 'warning';
+  const isMalfunction = isolated || status.toLowerCase() === 'malfunction' || status.toLowerCase() === 'offline';
+
+  useFrame((_, delta) => {
+    // Spindle rotation & reciprocating drilling plunge
+    if (spindleRef.current && active) {
+      const speed = isAnomaly ? 6 : 14;
+      spindleRef.current.rotation.y += delta * speed;
+      spindleRef.current.position.y = 1.45 + Math.sin(Date.now() * (isAnomaly ? 0.003 : 0.006)) * 0.2;
+    }
+
+    // Mechanical vibration jitter during anomaly/malfunction
+    if (jitterRef.current) {
+      if (isAnomaly) {
+        jitterRef.current.position.x = (Math.random() - 0.5) * 0.03;
+        jitterRef.current.position.z = (Math.random() - 0.5) * 0.03;
+      } else {
+        jitterRef.current.position.set(0, 0, 0);
+      }
+    }
+  });
+
+  return (
+    <group onClick={onClick}>
+      <group ref={jitterRef}>
+        {/* Main Machine Bed */}
+        <mesh position={[0, 0.5, 0]} castShadow>
+          <boxGeometry args={[1.5, 1.0, 1.3]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.3} />
+        </mesh>
+        {/* Heavy Vertical Hydraulic Support Column */}
+        <mesh position={[0.5, 1.3, 0]}>
+          <cylinderGeometry args={[0.14, 0.14, 2.2, 12]} />
+          <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.25} />
+        </mesh>
+        {/* Top Motor Housing */}
+        <mesh position={[0, 2.0, 0]}>
+          <boxGeometry args={[1.0, 0.45, 0.9]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.7} />
+        </mesh>
+        {/* Reciprocating Drill Spindle & Chuck */}
+        <group ref={spindleRef} position={[0, 1.45, 0]}>
+          <mesh position={[0, 0.15, 0]}>
+            <cylinderGeometry args={[0.1, 0.08, 0.35, 12]} />
+            <meshStandardMaterial color="#94a3b8" metalness={0.9} />
+          </mesh>
+          <mesh position={[0, -0.15, 0]}>
+            <cylinderGeometry args={[0.04, 0.015, 0.5, 8]} />
+            <meshStandardMaterial color="#e2e8f0" metalness={0.95} roughness={0.05} />
+          </mesh>
+        </group>
+        {/* IoT Temperature & Vibration Sensor Pod with Pulsing Halo */}
+        <mesh position={[-0.45, 1.6, 0.45]}>
+          <boxGeometry args={[0.14, 0.18, 0.14]} />
+          <meshStandardMaterial color="#0284c7" metalness={0.8} />
+        </mesh>
+        <mesh position={[-0.45, 1.72, 0.45]}>
+          <sphereGeometry args={[0.06, 8, 8]} />
+          <meshStandardMaterial
+            color={isAnomaly ? '#f97316' : isMalfunction ? '#ef4444' : '#10b981'}
+            emissive={isAnomaly ? '#f97316' : isMalfunction ? '#ef4444' : '#10b981'}
+            emissiveIntensity={1.5}
+          />
+        </mesh>
+        {/* Multi-Tier Tower Stack Light */}
+        <group position={[0.65, 2.3, -0.45]}>
+          <mesh>
+            <cylinderGeometry args={[0.03, 0.03, 0.5, 8]} />
+            <meshStandardMaterial color="#334155" />
+          </mesh>
+          {/* Red tier */}
+          <mesh position={[0, 0.28, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 0.08, 12]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={isMalfunction ? 2.0 : 0.2} />
+          </mesh>
+          {/* Yellow tier */}
+          <mesh position={[0, 0.18, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 0.08, 12]} />
+            <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={isAnomaly ? 2.0 : 0.2} />
+          </mesh>
+          {/* Green tier */}
+          <mesh position={[0, 0.08, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 0.08, 12]} />
+            <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={active && !isAnomaly ? 1.5 : 0.2} />
+          </mesh>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+// ── M3: AUTOMATED ROBOTIC ASSEMBLY CELL ───────────────────────────────────────
+function AssemblyStation({ status, isolated, selected, onClick }: MachineViewProps) {
+  const baseRef = useRef<THREE.Group>(null);
+  const shoulderRef = useRef<THREE.Group>(null);
+  const elbowRef = useRef<THREE.Group>(null);
+  const active = isMachineActive(status, isolated);
+  const color = getStatusColor(status, isolated);
+
+  useFrame(() => {
+    if (active && baseRef.current && shoulderRef.current && elbowRef.current) {
+      baseRef.current.rotation.y = Math.sin(Date.now() * 0.0012) * 0.45;
+      shoulderRef.current.rotation.z = 0.2 + Math.sin(Date.now() * 0.002) * 0.3;
+      elbowRef.current.rotation.z = -0.4 - Math.cos(Date.now() * 0.0025) * 0.35;
+    }
+  });
+
+  return (
+    <group onClick={onClick}>
+      {/* Heavy Steel Pedestal */}
+      <mesh position={[0, 0.45, 0]} castShadow>
+        <cylinderGeometry args={[0.75, 0.85, 0.9, 16]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Robot Base Rotating Turntable */}
+      <group ref={baseRef} position={[0, 0.9, 0]}>
+        <mesh>
+          <cylinderGeometry args={[0.6, 0.6, 0.2, 16]} />
+          <meshStandardMaterial color="#f59e0b" metalness={0.6} roughness={0.3} />
+        </mesh>
+        {/* Articulated Shoulder */}
+        <group ref={shoulderRef} position={[0, 0.2, 0]}>
+          <mesh position={[0, 0.5, 0]}>
+            <boxGeometry args={[0.22, 1.0, 0.22]} />
+            <meshStandardMaterial color="#f59e0b" metalness={0.6} />
+          </mesh>
+          {/* Elbow Joint & Forearm */}
+          <group ref={elbowRef} position={[0, 1.0, 0]}>
+            <mesh position={[0, 0.4, 0]}>
+              <boxGeometry args={[0.16, 0.85, 0.16]} />
+              <meshStandardMaterial color="#e2e8f0" metalness={0.8} />
+            </mesh>
+            {/* 2-Finger Pneumatic Gripper End-Effector */}
+            <mesh position={[0, 0.85, 0]}>
+              <sphereGeometry args={[0.12, 12, 12]} />
+              <meshStandardMaterial color="#334155" metalness={0.9} />
+            </mesh>
+            <mesh position={[0.08, 1.0, 0]}>
+              <boxGeometry args={[0.04, 0.2, 0.06]} />
+              <meshStandardMaterial color="#64748b" metalness={0.9} />
+            </mesh>
+            <mesh position={[-0.08, 1.0, 0]}>
+              <boxGeometry args={[0.04, 0.2, 0.06]} />
+              <meshStandardMaterial color="#64748b" metalness={0.9} />
+            </mesh>
+          </group>
+        </group>
+      </group>
+      {/* Safety Light Curtains around Robot cell */}
+      {[-0.9, 0.9].map((x) => (
+        <mesh key={x} position={[x, 0.9, 0.8]}>
+          <cylinderGeometry args={[0.03, 0.03, 1.8, 8]} />
+          <meshStandardMaterial color="#eab308" metalness={0.7} />
+        </mesh>
+      ))}
+      <mesh position={[0.8, 1.8, -0.6]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ── M4: OPTICAL LASER QUALITY INSPECTION TUNNEL ──────────────────────────────
+function QualityStation({ status, isolated, selected, onClick }: MachineViewProps) {
+  const scanPlaneRef = useRef<THREE.Mesh>(null);
+  const active = isMachineActive(status, isolated);
+  const color = getStatusColor(status, isolated);
+
+  useFrame(() => {
+    if (scanPlaneRef.current && active) {
+      scanPlaneRef.current.position.x = Math.sin(Date.now() * 0.003) * 0.5;
+    }
+  });
+
+  return (
+    <group onClick={onClick}>
+      <mesh position={[0, 0.5, 0]} castShadow>
+        <boxGeometry args={[1.5, 1.0, 1.3]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} />
+      </mesh>
+      {/* Inspection Arch Tunnel */}
+      <mesh position={[0, 1.3, 0]}>
+        <boxGeometry args={[1.5, 0.16, 1.4]} />
+        <meshStandardMaterial color="#334155" metalness={0.8} />
+      </mesh>
+      {/* Side Arch Pillars */}
+      {[-0.7, 0.7].map((x) => (
+        <mesh key={x} position={[x, 0.9, 0]}>
+          <cylinderGeometry args={[0.06, 0.06, 1.4, 8]} />
+          <meshStandardMaterial color="#475569" metalness={0.8} />
+        </mesh>
+      ))}
+      {/* Sweeping Blue Optical Laser Scan Sheet */}
+      <mesh ref={scanPlaneRef} position={[0, 0.9, 0]}>
+        <planeGeometry args={[0.04, 0.8]} />
+        <meshBasicMaterial color="#06b6d4" transparent opacity={active ? 0.85 : 0.2} />
+      </mesh>
+      {/* High-Resolution Camera Pod */}
+      <mesh position={[0, 1.4, 0]}>
+        <cylinderGeometry args={[0.08, 0.08, 0.15, 12]} />
+        <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[0.7, 1.8, -0.6]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ── M5: AUTOMATED PACKAGING & PALLETIZING CELL ────────────────────────────────
+function PackagingStation({ status, isolated, selected, onClick }: MachineViewProps) {
+  const ramRef = useRef<THREE.Mesh>(null);
+  const active = isMachineActive(status, isolated);
+  const color = getStatusColor(status, isolated);
+
+  useFrame(() => {
+    if (ramRef.current && active) {
+      ramRef.current.position.y = 1.35 + Math.abs(Math.sin(Date.now() * 0.003)) * 0.25;
+    }
+  });
+
+  return (
+    <group onClick={onClick}>
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <boxGeometry args={[1.6, 1.1, 1.4]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} />
+      </mesh>
+      {/* Heavy Pneumatic Press Frame */}
+      <mesh position={[0, 1.85, 0]}>
+        <boxGeometry args={[1.2, 0.35, 1.0]} />
+        <meshStandardMaterial color="#334155" metalness={0.9} />
+      </mesh>
+      {/* Hydraulic Compression Ram */}
+      <mesh ref={ramRef} position={[0, 1.35, 0]}>
+        <boxGeometry args={[0.8, 0.3, 0.8]} />
+        <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
+      </mesh>
+      <mesh position={[0.7, 2.05, -0.6]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ─── 3D Safety Isolation Laser Curtain & Warning Hologram ─────────────────────
+
+function SafetyIsolationZone({
+  active,
+  xPos,
+  reason,
+}: {
+  active: boolean;
+  xPos: number;
+  reason?: string | null;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
   const pulseRef = useRef(0);
 
   useFrame((_, delta) => {
-    if (!laserRef.current || !active) return;
+    if (!meshRef.current || !active) return;
     pulseRef.current += delta * 4;
     const op = 0.35 + Math.abs(Math.sin(pulseRef.current)) * 0.35;
-    (laserRef.current.material as THREE.MeshBasicMaterial).opacity = op;
+    (meshRef.current.material as THREE.MeshBasicMaterial).opacity = op;
   });
 
   if (!active) return null;
@@ -366,10 +1043,10 @@ function SafetyIsolationBarrier({ xPos, active, reason }: SafetyBarrierProps) {
     <group position={[xPos, 0, 0]}>
       {/* 4 Corner Warning Hazard Pylons */}
       {[
-        [-1.2, 1.2],
-        [ 1.2, 1.2],
-        [-1.2, -1.2],
-        [ 1.2, -1.2],
+        [-1.3,  1.3],
+        [ 1.3,  1.3],
+        [-1.3, -1.3],
+        [ 1.3, -1.3],
       ].map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, 0.7, 0]}>
@@ -377,370 +1054,173 @@ function SafetyIsolationBarrier({ xPos, active, reason }: SafetyBarrierProps) {
             <meshStandardMaterial color="#eab308" roughness={0.3} metalness={0.7} />
           </mesh>
           <mesh position={[0, 1.45, 0]}>
-            <sphereGeometry args={[0.08, 8, 8]} />
-            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1.2} />
+            <sphereGeometry args={[0.09, 8, 8]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={1.8} />
           </mesh>
         </group>
       ))}
 
-      {/* Red Safety Isolation Perimeter Laser Curtain */}
-      <mesh ref={laserRef} position={[0, 0.7, 0]}>
-        <boxGeometry args={[2.4, 1.3, 2.4]} />
+      {/* Red Safety Isolation Perimeter Laser Grid */}
+      <mesh ref={meshRef} position={[0, 0.7, 0]}>
+        <boxGeometry args={[2.6, 1.4, 2.6]} />
         <meshBasicMaterial color="#ef4444" transparent opacity={0.45} wireframe />
       </mesh>
 
-      {/* Hazard Zone Ground Outline */}
+      {/* Floor Red Hazard Glow */}
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[2.5, 2.5]} />
-        <meshBasicMaterial color="#ef4444" transparent opacity={0.25} />
+        <planeGeometry args={[2.7, 2.7]} />
+        <meshBasicMaterial color="#ef4444" transparent opacity={0.3} />
       </mesh>
 
-      {/* Overhead Safety Isolation Floating Warning */}
-      <Text position={[0, 2.6, 0]} fontSize={0.22} color="#ef4444" anchorX="center" anchorY="middle">
-        ⚠ SAFETY ISOLATION ACTIVE
-      </Text>
-      {reason && (
-        <Text position={[0, 2.35, 0]} fontSize={0.14} color="#fca5a5" anchorX="center" anchorY="middle">
-          {reason}
+      {/* 3D Holographic AI Anomaly Diagnostic Banner */}
+      <group position={[0, 2.8, 0]}>
+        <mesh position={[0, 0, 0]}>
+          <planeGeometry args={[3.2, 0.8]} />
+          <meshBasicMaterial color="#0f172a" transparent opacity={0.85} />
+        </mesh>
+        <Text position={[0, 0.22, 0.01]} fontSize={0.2} color="#ef4444" anchorX="center" anchorY="middle">
+          ⚠ FACTORYMIND AI: ANOMALY DETECTED
         </Text>
-      )}
+        <Text position={[0, -0.02, 0.01]} fontSize={0.15} color="#fca5a5" anchorX="center" anchorY="middle">
+          ROOT CAUSE: SPINDLE OVERHEATING
+        </Text>
+        <Text position={[0, -0.22, 0.01]} fontSize={0.12} color="#cbd5e1" anchorX="center" anchorY="middle">
+          VIBRATION: 8.7 mm/s | TEMP: 87.4°C | RPM: ABNORMAL
+        </Text>
+      </group>
     </group>
   );
 }
 
-// ─── Autonomous Service Robot / Maintenance Drone ─────────────────────────────
+// ─── Autonomous Maintenance Robot Drone ───────────────────────────────────────
 
-interface MaintenanceRobotProps {
-  repairStatus?: RepairStatus;
-}
-
-function MaintenanceRobot({ repairStatus }: MaintenanceRobotProps) {
-  const robotGroup = useRef<THREE.Group>(null);
-  const toolArmRef = useRef<THREE.Group>(null);
+function AutonomousMaintenanceRobot({ repairStatus }: { repairStatus?: RepairStatus }) {
+  const ref = useRef<THREE.Group>(null);
+  const armRef = useRef<THREE.Group>(null);
   const targetX = repairStatus?.active ? -4.0 : 0.0;
-  const targetZ = repairStatus?.active ? 1.6 : 3.6;
+  const targetZ = repairStatus?.active ? 1.7 : 5.8;
 
   useFrame((_, delta) => {
-    if (!robotGroup.current) return;
+    if (!ref.current) return;
+    ref.current.position.x = THREE.MathUtils.lerp(ref.current.position.x, targetX, delta * 2.2);
+    ref.current.position.z = THREE.MathUtils.lerp(ref.current.position.z, targetZ, delta * 2.2);
 
-    // Smooth navigation towards target position
-    robotGroup.current.position.x = THREE.MathUtils.lerp(robotGroup.current.position.x, targetX, delta * 2.0);
-    robotGroup.current.position.z = THREE.MathUtils.lerp(robotGroup.current.position.z, targetZ, delta * 2.0);
-
-    // If at repair station, perform repair animation
-    if (repairStatus?.active && toolArmRef.current) {
-      toolArmRef.current.rotation.z = Math.sin(Date.now() * 0.005) * 0.3;
-      toolArmRef.current.rotation.y = Math.cos(Date.now() * 0.004) * 0.4;
+    if (repairStatus?.active && armRef.current) {
+      armRef.current.rotation.z = Math.sin(Date.now() * 0.005) * 0.35;
+      armRef.current.rotation.y = Math.cos(Date.now() * 0.004) * 0.45;
     }
   });
 
   return (
-    <group ref={robotGroup} position={[0, 0, 3.6]}>
-      {/* Robot Base Chassis */}
+    <group ref={ref} position={[0, 0, 5.8]}>
+      {/* Heavy Mobile Base Chassis */}
       <mesh position={[0, 0.25, 0]} castShadow>
-        <boxGeometry args={[0.9, 0.35, 0.7]} />
-        <meshStandardMaterial color="#3b0764" metalness={0.7} roughness={0.3} />
+        <boxGeometry args={[1.0, 0.4, 0.8]} />
+        <meshStandardMaterial color="#2e1065" metalness={0.7} roughness={0.3} />
       </mesh>
       {/* Heavy Track Rollers */}
-      <mesh position={[0, 0.12, 0.38]}>
-        <boxGeometry args={[1.0, 0.2, 0.14]} />
+      <mesh position={[0, 0.12, 0.44]}>
+        <boxGeometry args={[1.1, 0.22, 0.16]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 0.12, -0.38]}>
-        <boxGeometry args={[1.0, 0.2, 0.14]} />
+      <mesh position={[0, 0.12, -0.44]}>
+        <boxGeometry args={[1.1, 0.22, 0.16]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} />
       </mesh>
-
-      {/* Articulated Maintenance Arm */}
-      <group ref={toolArmRef} position={[0, 0.45, 0]}>
-        <mesh position={[0, 0.35, 0]}>
-          <cylinderGeometry args={[0.06, 0.08, 0.7, 8]} />
-          <meshStandardMaterial color="#a855f7" metalness={0.8} roughness={0.2} />
+      {/* Articulated Multi-Tool Maintenance Arm */}
+      <group ref={armRef} position={[0, 0.48, 0]}>
+        <mesh position={[0, 0.4, 0]}>
+          <cylinderGeometry args={[0.07, 0.09, 0.8, 8]} />
+          <meshStandardMaterial color="#a855f7" metalness={0.8} />
         </mesh>
-        {/* Diagnostic Laser Tool Head */}
-        <mesh position={[0, 0.75, 0.1]}>
-          <boxGeometry args={[0.2, 0.16, 0.25]} />
+        <mesh position={[0, 0.85, 0.12]}>
+          <boxGeometry args={[0.22, 0.18, 0.28]} />
           <meshStandardMaterial color="#c084fc" metalness={0.9} />
         </mesh>
-        {/* Active Tool Glow / Laser Beam when repairing */}
+        {/* Active Laser Repair Beam when repairing */}
         {repairStatus?.active && (
-          <mesh position={[0, 0.75, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.15, 1.2, 16]} />
-            <meshBasicMaterial color="#06b6d4" transparent opacity={0.55} />
+          <mesh position={[0, 0.85, -0.7]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.18, 1.4, 16]} />
+            <meshBasicMaterial color="#06b6d4" transparent opacity={0.65} />
           </mesh>
         )}
       </group>
-
-      {/* Status Beacon on Robot */}
-      <mesh position={[0, 0.5, 0]}>
-        <sphereGeometry args={[0.07, 8, 8]} />
+      {/* Status Beacon */}
+      <mesh position={[0, 0.55, 0]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
         <meshStandardMaterial
           color={repairStatus?.active ? '#a855f7' : '#06b6d4'}
           emissive={repairStatus?.active ? '#a855f7' : '#06b6d4'}
-          emissiveIntensity={1.5}
+          emissiveIntensity={1.8}
         />
       </mesh>
-
       {repairStatus?.active && (
-        <Text position={[0, 1.6, 0]} fontSize={0.2} color="#c084fc" anchorX="center" anchorY="middle">
-          MAINTENANCE ROBOT {repairStatus.progress}%
+        <Text position={[0, 1.7, 0]} fontSize={0.22} color="#c084fc" anchorX="center" anchorY="middle">
+          AUTONOMOUS REPAIR {repairStatus.progress}%
         </Text>
       )}
     </group>
   );
 }
 
-// ─── Machine Visual Architectures ─────────────────────────────────────────────
+// ─── Machine Node Assembly with Digital HUD Labels ────────────────────────────
 
-interface MachineMeshProps {
-  id: string;
-  status: string;
-  isolated?: boolean;
-  selected: boolean;
-  onClick: () => void;
-}
-
-// M1: Cutting Machine
-function CuttingVisual({ status, isolated, selected, onClick }: MachineMeshProps) {
-  const bladeRef = useRef<THREE.Mesh>(null);
-  const active = isMachineActive(status, isolated);
-  const color = getStatusColor(status, isolated);
-
-  useFrame((_, delta) => {
-    if (bladeRef.current && active) {
-      bladeRef.current.rotation.y += delta * 6;
-    }
-  });
-
-  return (
-    <group onClick={onClick}>
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <boxGeometry args={[1.5, 1.1, 1.1]} />
-        <meshStandardMaterial color="#1e3a5f" emissive={color} emissiveIntensity={selected ? 0.4 : 0.08} metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Top housing */}
-      <mesh position={[0, 1.2, 0]}>
-        <boxGeometry args={[1.7, 0.15, 1.25]} />
-        <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.2} />
-      </mesh>
-      {/* High-speed circular carbide saw blade */}
-      <mesh ref={bladeRef} position={[0, 1.45, 0]}>
-        <cylinderGeometry args={[0.38, 0.38, 0.04, 16]} />
-        <meshStandardMaterial color="#cbd5e1" metalness={0.95} roughness={0.1} />
-      </mesh>
-      {/* Blade mounting column */}
-      <mesh position={[0, 1.3, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.25, 8]} />
-        <meshStandardMaterial color="#475569" metalness={0.9} />
-      </mesh>
-    </group>
-  );
-}
-
-// M2: Drilling Machine
-function DrillingVisual({ status, isolated, selected, onClick }: MachineMeshProps) {
-  const spindleRef = useRef<THREE.Group>(null);
-  const active = isMachineActive(status, isolated);
-  const color = getStatusColor(status, isolated);
-
-  useFrame((_, delta) => {
-    if (spindleRef.current && active) {
-      spindleRef.current.rotation.y += delta * 12;
-      spindleRef.current.position.y = 1.45 + Math.sin(Date.now() * 0.006) * 0.18;
-    }
-  });
-
-  return (
-    <group onClick={onClick}>
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <boxGeometry args={[1.3, 1.1, 1.1]} />
-        <meshStandardMaterial color="#1e3a5f" emissive={color} emissiveIntensity={selected ? 0.4 : 0.08} metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Hydraulic Support Column */}
-      <mesh position={[0.45, 1.1, 0]}>
-        <cylinderGeometry args={[0.1, 0.1, 1.8, 8]} />
-        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
-      </mesh>
-      {/* Top motor box */}
-      <mesh position={[0, 1.8, 0]}>
-        <boxGeometry args={[0.8, 0.35, 0.8]} />
-        <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
-      </mesh>
-      {/* Reciprocating High-Speed Spindle */}
-      <group ref={spindleRef} position={[0, 1.45, 0]}>
-        <mesh>
-          <cylinderGeometry args={[0.07, 0.025, 0.6, 8]} />
-          <meshStandardMaterial color="#94a3b8" metalness={0.95} roughness={0.05} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-// M3: Assembly Machine (6-Axis Robotic Arm)
-function AssemblyVisual({ status, isolated, selected, onClick }: MachineMeshProps) {
-  const shoulderRef = useRef<THREE.Group>(null);
-  const elbowRef = useRef<THREE.Group>(null);
-  const active = isMachineActive(status, isolated);
-  const color = getStatusColor(status, isolated);
-
-  useFrame(() => {
-    if (shoulderRef.current && elbowRef.current && active) {
-      shoulderRef.current.rotation.z = Math.sin(Date.now() * 0.002) * 0.35;
-      elbowRef.current.rotation.z = -Math.cos(Date.now() * 0.0025) * 0.45;
-    }
-  });
-
-  return (
-    <group onClick={onClick}>
-      <mesh position={[0, 0.45, 0]} castShadow>
-        <cylinderGeometry args={[0.65, 0.75, 0.9, 16]} />
-        <meshStandardMaterial color="#1e3a5f" emissive={color} emissiveIntensity={selected ? 0.4 : 0.08} metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Articulated shoulder */}
-      <group ref={shoulderRef} position={[0, 0.9, 0]}>
-        <mesh position={[0, 0.4, 0]}>
-          <boxGeometry args={[0.18, 0.8, 0.18]} />
-          <meshStandardMaterial color="#f59e0b" metalness={0.6} roughness={0.3} />
-        </mesh>
-        {/* Elbow & Gripper */}
-        <group ref={elbowRef} position={[0, 0.8, 0]}>
-          <mesh position={[0, 0.35, 0]}>
-            <boxGeometry args={[0.14, 0.7, 0.14]} />
-            <meshStandardMaterial color="#e2e8f0" metalness={0.8} />
-          </mesh>
-          <mesh position={[0, 0.75, 0]}>
-            <sphereGeometry args={[0.1, 8, 8]} />
-            <meshStandardMaterial color="#334155" metalness={0.9} />
-          </mesh>
-        </group>
-      </group>
-    </group>
-  );
-}
-
-// M4: Quality Check (Optical Laser Inspection)
-function QualityVisual({ status, isolated, selected, onClick }: MachineMeshProps) {
-  const scanRingRef = useRef<THREE.Mesh>(null);
-  const active = isMachineActive(status, isolated);
-  const color = getStatusColor(status, isolated);
-
-  useFrame((_, delta) => {
-    if (scanRingRef.current && active) {
-      scanRingRef.current.position.y = 1.0 + Math.sin(Date.now() * 0.004) * 0.4;
-    }
-  });
-
-  return (
-    <group onClick={onClick}>
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <boxGeometry args={[1.3, 0.95, 1.1]} />
-        <meshStandardMaterial color="#1e3a5f" emissive={color} emissiveIntensity={selected ? 0.4 : 0.08} metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Inspection Arch frame */}
-      <mesh position={[0, 1.35, 0]}>
-        <boxGeometry args={[1.4, 0.15, 1.2]} />
-        <meshStandardMaterial color="#334155" metalness={0.8} />
-      </mesh>
-      {/* Scanning laser beam ring */}
-      <mesh ref={scanRingRef} position={[0, 1.0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.45, 0.55, 16]} />
-        <meshBasicMaterial color="#06b6d4" transparent opacity={active ? 0.7 : 0.2} />
-      </mesh>
-    </group>
-  );
-}
-
-// M5: Packaging Machine
-function PackagingVisual({ status, isolated, selected, onClick }: MachineMeshProps) {
-  const pressRef = useRef<THREE.Mesh>(null);
-  const active = isMachineActive(status, isolated);
-  const color = getStatusColor(status, isolated);
-
-  useFrame(() => {
-    if (pressRef.current && active) {
-      pressRef.current.position.y = 1.3 + Math.abs(Math.sin(Date.now() * 0.003)) * 0.3;
-    }
-  });
-
-  return (
-    <group onClick={onClick}>
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <boxGeometry args={[1.4, 1.1, 1.1]} />
-        <meshStandardMaterial color="#1e3a5f" emissive={color} emissiveIntensity={selected ? 0.4 : 0.08} metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Hydraulic Press Ram */}
-      <mesh ref={pressRef} position={[0, 1.3, 0]}>
-        <boxGeometry args={[0.7, 0.3, 0.7]} />
-        <meshStandardMaterial color="#475569" metalness={0.9} roughness={0.1} />
-      </mesh>
-      <mesh position={[0, 1.75, 0]}>
-        <cylinderGeometry args={[0.1, 0.1, 0.6, 8]} />
-        <meshStandardMaterial color="#334155" metalness={0.8} />
-      </mesh>
-    </group>
-  );
-}
-
-// ─── Machine Node Assembly ────────────────────────────────────────────────────
-
-interface MachineNodeProps {
+function MachineStationAssembly({
+  config,
+  data,
+  selected,
+  showLabels,
+  onSelect,
+}: {
   config: (typeof MACHINE_CONFIGS)[0];
   data?: MachineData;
   selected: boolean;
   showLabels: boolean;
   onSelect: () => void;
-}
-
-function MachineNode({ config, data, selected, showLabels, onSelect }: MachineNodeProps) {
+}) {
   const status = data?.status ?? 'running';
   const isolated = data?.isolated ?? false;
   const statusColor = getStatusColor(status, isolated);
 
   return (
     <group position={[config.xPos, 0, 0]}>
-      {/* Machine 3D Visual Mesh based on machine type */}
-      {config.id === 'M1' && <CuttingVisual id="M1" status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
-      {config.id === 'M2' && <DrillingVisual id="M2" status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
-      {config.id === 'M3' && <AssemblyVisual id="M3" status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
-      {config.id === 'M4' && <QualityVisual id="M4" status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
-      {config.id === 'M5' && <PackagingVisual id="M5" status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
+      {/* Specific Machine Visual */}
+      {config.id === 'M1' && <CuttingStation status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
+      {config.id === 'M2' && <DrillingStation status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
+      {config.id === 'M3' && <AssemblyStation status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
+      {config.id === 'M4' && <QualityStation status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
+      {config.id === 'M5' && <PackagingStation status={status} isolated={isolated} selected={selected} onClick={onSelect} />}
 
-      {/* Safety Isolation Barrier */}
-      <SafetyIsolationBarrier xPos={0} active={isolated} reason={data?.isolation_reason} />
+      {/* Safety Isolation Barrier for M2 or any isolated machine */}
+      <SafetyIsolationZone active={isolated} xPos={0} reason={data?.isolation_reason} />
 
-      {/* Floating Status Beacon */}
-      <mesh position={[0, 2.1, 0]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshStandardMaterial
-          color={statusColor}
-          emissive={statusColor}
-          emissiveIntensity={1.2}
-          roughness={0.2}
-        />
+      {/* Status Beacon Globe */}
+      <mesh position={[0, 2.35, 0]}>
+        <sphereGeometry args={[0.11, 12, 12]} />
+        <meshStandardMaterial color={statusColor} emissive={statusColor} emissiveIntensity={1.4} />
       </mesh>
 
-      {/* Digital HUD Label over Machine */}
+      {/* 3D Digital Hologram Info Panel over Machine */}
       {showLabels && (
-        <group position={[0, 2.5, 0]}>
+        <group position={[0, 2.75, 0]}>
           <Text fontSize={0.28} color="#f8fafc" anchorX="center" anchorY="bottom" outlineWidth={0.02} outlineColor="#020617">
             {`${config.id} ${config.name}`}
           </Text>
-          <Text position={[0, -0.22, 0]} fontSize={0.16} color={getStatusHex(status, isolated)} anchorX="center" anchorY="top">
+          <Text position={[0, -0.22, 0]} fontSize={0.17} color={getStatusHex(status, isolated)} anchorX="center" anchorY="top">
             {isolated ? '● ISOLATED' : `● ${status.toUpperCase()}`}
           </Text>
           {data?.temperature !== undefined && (
             <Text position={[0, -0.42, 0]} fontSize={0.14} color="#94a3b8" anchorX="center" anchorY="top">
-              {`${data.temperature.toFixed(1)}°C | ${data.vibration?.toFixed(2) ?? '1.8'} mm/s`}
+              {`${data.temperature.toFixed(1)}°C | ${data.vibration?.toFixed(2) ?? '1.8'} mm/s | ${data.rpm ?? 1420} RPM`}
             </Text>
           )}
         </group>
       )}
 
-      {/* Selection Glow Circle */}
+      {/* Selection Ring */}
       {selected && (
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.2, 1.35, 32]} />
+          <ringGeometry args={[1.3, 1.45, 32]} />
           <meshBasicMaterial color="#06b6d4" />
         </mesh>
       )}
@@ -748,27 +1228,31 @@ function MachineNode({ config, data, selected, showLabels, onSelect }: MachineNo
   );
 }
 
-// ─── Camera Controller Preset Hook ────────────────────────────────────────────
+// ─── Camera Controller & Presets Hook ─────────────────────────────────────────
 
-function CameraPresetTrigger({ preset }: { preset: string }) {
+function CameraPresetController({ preset }: { preset: string }) {
   const { camera } = useThree();
 
   useFrame(() => {
-    let targetPos: [number, number, number] = [0, 9, 14];
-    if (preset === 'm2_focus') {
-      targetPos = [-4, 4.5, 6.5];
-    } else if (preset === 'top_down') {
-      targetPos = [0, 16, 2];
+    let target: [number, number, number] = [0, 11, 17];
+    if (preset === 'production') {
+      target = [0, 6, 10];
+    } else if (preset === 'm2_focus') {
+      target = [-4, 4, 6.5];
     } else if (preset === 'maintenance') {
-      targetPos = [-2, 5, 8];
+      target = [0, 6, 11];
+    } else if (preset === 'warehouse') {
+      target = [-14, 8, 12];
+    } else if (preset === 'full_factory') {
+      target = [0, 15, 22];
     }
-    camera.position.lerp(new THREE.Vector3(...targetPos), 0.05);
+    camera.position.lerp(new THREE.Vector3(...target), 0.05);
   });
 
   return null;
 }
 
-// ─── Main Factory3D Scene ─────────────────────────────────────────────────────
+// ─── Main Exported Factory3D Component ────────────────────────────────────────
 
 export default function Factory3D({
   machines = [],
@@ -780,18 +1264,17 @@ export default function Factory3D({
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const [showLabels, setShowLabels] = useState(true);
   const [animateConveyor, setAnimateConveyor] = useState(true);
-  const [cameraPreset, setCameraPreset] = useState<'overview' | 'm2_focus' | 'top_down' | 'maintenance'>('overview');
+  const [cameraPreset, setCameraPreset] = useState<
+    'overview' | 'production' | 'm2_focus' | 'maintenance' | 'warehouse' | 'full_factory'
+  >('overview');
 
   const selectedId = selectedMachineId !== undefined ? selectedMachineId : internalSelectedId;
 
   const handleSelect = useCallback(
     (id: string) => {
-      const nextId = selectedId === id ? null : id;
-      if (onSelectMachine) {
-        onSelectMachine(nextId);
-      } else {
-        setInternalSelectedId(nextId);
-      }
+      const next = selectedId === id ? null : id;
+      if (onSelectMachine) onSelectMachine(next);
+      else setInternalSelectedId(next);
     },
     [selectedId, onSelectMachine]
   );
@@ -803,42 +1286,51 @@ export default function Factory3D({
   }, [machines]);
 
   const selectedMachine = selectedId ? machineMap.get(selectedId) : undefined;
+  const hasFailure = machines.some((m) => m.isolated || m.status === 'malfunction' || m.status === 'offline');
 
   return (
     <section className={`panel f3d-section ${presentationMode ? 'f3d-presentation' : ''}`}>
-      {/* Header bar */}
+      {/* ── Control Header & Camera Presets ── */}
       <div className="panel-header f3d-header">
         <div>
           <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#06b6d4' }}>❖</span> 3D Digital Twin Simulation
+            <span style={{ color: '#06b6d4' }}>❖</span> Industrial Digital Twin 3D Environment
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-            Autonomous manufacturing cell with real-time telemetry, robotics, and safety isolation
+            High-detail smart factory floor with warehouse racks, AGVs, robotic assembly, and live IoT telemetry
           </p>
         </div>
 
-        {/* View presets and toggles */}
         <div className="f3d-controls">
           <button
-            className={`f3d-ctrl-btn ${cameraPreset === 'overview' ? 'active' : ''}`}
-            onClick={() => setCameraPreset('overview')}
-            title="Overview angle"
+            className={`f3d-ctrl-btn ${cameraPreset === 'full_factory' ? 'active' : ''}`}
+            onClick={() => setCameraPreset('full_factory')}
           >
-            Overview
+            Full Factory
+          </button>
+          <button
+            className={`f3d-ctrl-btn ${cameraPreset === 'production' ? 'active' : ''}`}
+            onClick={() => setCameraPreset('production')}
+          >
+            Production Line
           </button>
           <button
             className={`f3d-ctrl-btn ${cameraPreset === 'm2_focus' ? 'active' : ''}`}
             onClick={() => setCameraPreset('m2_focus')}
-            title="Focus on M2 Drilling Station"
           >
-            Focus M2
+            M2 Diagnostic
           </button>
           <button
             className={`f3d-ctrl-btn ${cameraPreset === 'maintenance' ? 'active' : ''}`}
             onClick={() => setCameraPreset('maintenance')}
-            title="Focus on Maintenance Bay"
           >
             Service Bay
+          </button>
+          <button
+            className={`f3d-ctrl-btn ${cameraPreset === 'warehouse' ? 'active' : ''}`}
+            onClick={() => setCameraPreset('warehouse')}
+          >
+            Warehouse
           </button>
           <button
             className={`f3d-ctrl-btn ${animateConveyor ? 'active' : ''}`}
@@ -855,38 +1347,46 @@ export default function Factory3D({
         </div>
       </div>
 
-      {/* Legend */}
+      {/* ── Legend ── */}
       <div className="f3d-legend">
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#22c55e' }} />RUNNING</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#eab308' }} />WARNING</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#f97316' }} />ANOMALY</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#ef4444' }} />MALFUNCTION / ISOLATED</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#06b6d4' }} />DIAGNOSING</span>
-        <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#a855f7' }} />REPAIRING (ROBOT)</span>
+        <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#a855f7' }} />REPAIRING (AGV/ROBOT)</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#3b82f6' }} />SYSTEM TESTING</span>
         <span className="f3d-legend-item"><span className="f3d-legend-dot" style={{ background: '#10b981' }} />RECOVERED</span>
       </div>
 
-      {/* 3D Canvas */}
+      {/* ── 3D Canvas ── */}
       <div className="f3d-canvas-wrap">
         <Canvas
           shadows
-          camera={{ position: [0, 9, 14], fov: 45 }}
-          style={{ background: '#030712' }}
+          camera={{ position: [0, 11, 17], fov: 45 }}
+          style={{ background: '#020617' }}
           gl={{ antialias: true, alpha: false }}
         >
           <ambientLight intensity={0.55} color="#e0f2fe" />
-          <directionalLight position={[10, 15, 8]} intensity={1.2} castShadow color="#ffffff" shadow-mapSize={[1024, 1024]} />
-          <directionalLight position={[-10, 12, -6]} intensity={0.6} color="#1e3a5f" />
-          <pointLight position={[0, 4, 0]} intensity={0.8} color="#06b6d4" distance={20} />
+          <directionalLight
+            position={[12, 18, 10]}
+            intensity={1.3}
+            castShadow
+            color="#ffffff"
+            shadow-mapSize={[1024, 1024]}
+          />
+          <directionalLight position={[-12, 14, -8]} intensity={0.65} color="#1e3a5f" />
+          <pointLight position={[0, 5, 0]} intensity={0.9} color="#06b6d4" distance={24} />
 
-          <CameraPresetTrigger preset={cameraPreset} />
-          <FactoryEnvironment />
-          <ConveyorWithFlow machines={machines} animate={animateConveyor} />
-          <MaintenanceRobot repairStatus={repairStatus} />
+          <CameraPresetController preset={cameraPreset} />
+          <FactoryArchitecture />
+          <WarehouseStorageZones />
+          <AGVFleet hasFailure={hasFailure} />
+          <ConveyorLine machines={machines} animate={animateConveyor} />
+          <AutonomousMaintenanceRobot repairStatus={repairStatus} />
 
           {MACHINE_CONFIGS.map((cfg) => (
-            <MachineNode
+            <MachineStationAssembly
               key={cfg.id}
               config={cfg}
               data={machineMap.get(cfg.id)}
@@ -900,12 +1400,12 @@ export default function Factory3D({
             enableDamping
             dampingFactor={0.05}
             minDistance={4}
-            maxDistance={32}
+            maxDistance={38}
             maxPolarAngle={Math.PI / 2.05}
           />
         </Canvas>
 
-        {/* Selected Machine Telemetry Floating Inspector */}
+        {/* Selected Machine Telemetry HUD Inspector */}
         {selectedMachine && (
           <div className="f3d-info-panel">
             <div className="f3d-info-header">
@@ -936,7 +1436,10 @@ export default function Factory3D({
               </div>
               <div className="f3d-info-row">
                 <span className="f3d-info-label">Health</span>
-                <span className="f3d-info-value" style={{ color: selectedMachine.health && selectedMachine.health < 60 ? '#ef4444' : '#10b981' }}>
+                <span
+                  className="f3d-info-value"
+                  style={{ color: (selectedMachine.health ?? 95) < 60 ? '#ef4444' : '#10b981' }}
+                >
                   {selectedMachine.health ?? 95}%
                 </span>
               </div>
