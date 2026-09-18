@@ -1,30 +1,12 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import './index.css';
-import Factory3D from './components/Factory3D';
+import Factory3D, { MachineData, RepairStatus } from './components/Factory3D';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type Machine = {
-  id: string;
-  name: string;
-  processing_time: number;
-  status: string;
-  queue: number;
-  utilization: number;
-  completed: number;
-  downtime: number;
-};
-
-type EventLogItem = {
-  type: string;
-  message: string;
-  timestamp: string;
-  machine_id?: string;
-};
 
 type Bottleneck = {
   machine_id: string;
@@ -35,6 +17,50 @@ type Bottleneck = {
   recommended_action: string;
 };
 
+type EventLogItem = {
+  type: string;
+  message: string;
+  timestamp: string;
+  machine_id?: string;
+  phase?: string;
+};
+
+type AIDiagnosis = {
+  active: boolean;
+  phase: string;
+  machine_id: string | null;
+  root_cause: string | null;
+  confidence: number;
+  impact_production_pct: number;
+  affected_stage: string | null;
+  downstream_impact: string | null;
+  recommended_action: string | null;
+  timestamp: string | null;
+};
+
+type RepairTask = {
+  name: string;
+  progress: number;
+  status: 'pending' | 'in_progress' | 'completed';
+};
+
+type FullRepairStatus = {
+  active: boolean;
+  target_machine: string | null;
+  progress: number;
+  current_task: string | null;
+  tasks?: RepairTask[];
+  validation_results?: Record<string, string>;
+};
+
+type AlertItem = {
+  machine: string;
+  severity: string;
+  title: string;
+  details: string;
+  timestamp: string;
+};
+
 type FactoryState = {
   factory_running: boolean;
   total_production: number;
@@ -42,118 +68,85 @@ type FactoryState = {
   average_utilization: number;
   production_rate: number;
   bottleneck: Bottleneck | null;
-  machines: Machine[];
+  machines: MachineData[];
   event_log?: EventLogItem[];
   demo_mode?: boolean;
+  demo_phase?: string;
   active_machines?: number;
+  factory_health?: number;
+  ai_diagnosis?: AIDiagnosis;
+  repair_status?: FullRepairStatus;
+  active_alerts?: AlertItem[];
 };
 
-type TrendPoint = {
-  t: string;           // label: HH:MM:SS
-  production: number;  // cumulative total
-  rate: number;        // delta per poll
-  utilization: number; // average utilization
-  downtime: number;    // cumulative downtime
+type TelemetryTrendPoint = {
+  t: string;
+  production: number;
+  rate: number;
+  utilization: number;
+  m2_temp: number;
+  m2_vib: number;
 };
-
-// ─── AI Insight generation ────────────────────────────────────────────────────
-
-type Insight = {
-  title: string;
-  machine: string;
-  issue: string;
-  impact: string;
-  action: string;
-  improvement: string;
-  severity: 'normal' | 'warning' | 'critical' | 'failure';
-};
-
-function generateInsight(state: FactoryState): Insight {
-  const failedMachines = state.machines.filter(
-    (m) => m.status.toLowerCase() === 'offline'
-  );
-  const bn = state.bottleneck;
-
-  // Priority 1 — active machine failure
-  if (failedMachines.length > 0) {
-    const failed = failedMachines[0];
-    return {
-      title: 'Machine Failure Detected',
-      machine: `${failed.id} — ${failed.name}`,
-      issue: `${failed.name} is offline. ${failedMachines.length > 1 ? `${failedMachines.length} machines are currently offline.` : ''}`,
-      impact: `Production output is reduced. Downstream machines may develop queue buildup. Accumulated downtime: ${failed.downtime}s.`,
-      action: `Perform immediate inspection of ${failed.name}. Check hydraulics, power supply, and mechanical components. Click "Recover Machine" once repairs are complete.`,
-      improvement: 'Restoring this machine will recover production flow and halt downtime accumulation.',
-      severity: 'failure',
-    };
-  }
-
-  // Priority 2 — critical bottleneck
-  if (bn && bn.severity === 'critical') {
-    return {
-      title: 'Critical Bottleneck Identified',
-      machine: `${bn.machine_id} — ${bn.machine_name}`,
-      issue: `${bn.machine_name} utilization is critically high (${bn.reason}).`,
-      impact: `Production throughput is severely constrained at the ${bn.machine_name} stage. Queue is backing up into upstream machines.`,
-      action: bn.recommended_action,
-      improvement: 'Reducing cycle time by 20% could restore normal queue levels within 3–5 minutes.',
-      severity: 'critical',
-    };
-  }
-
-  // Priority 3 — warning bottleneck
-  if (bn && bn.severity === 'warning') {
-    return {
-      title: 'Bottleneck Warning',
-      machine: `${bn.machine_id} — ${bn.machine_name}`,
-      issue: `${bn.machine_name} is approaching capacity limits. ${bn.reason}.`,
-      impact: 'Queue is growing. If unaddressed, this may escalate to a critical bottleneck within minutes.',
-      action: bn.recommended_action,
-      improvement: 'Early intervention at this stage prevents cascading production delays.',
-      severity: 'warning',
-    };
-  }
-
-  // Default — normal operation
-  const bestMachine = state.machines.reduce((prev, curr) =>
-    curr.utilization > prev.utilization ? curr : prev
-  );
-  return {
-    title: 'Production Line Optimal',
-    machine: `${bestMachine.id} — ${bestMachine.name}`,
-    issue: `All machines are operating within normal parameters. Highest utilization: ${bestMachine.name} at ${bestMachine.utilization.toFixed(1)}%.`,
-    impact: `Line utilization at ${state.average_utilization.toFixed(1)}%. ${state.active_machines ?? state.machines.length} of ${state.machines.length} machines active.`,
-    action: 'No immediate action required. Continue monitoring for queue buildup or utilization spikes.',
-    improvement: 'Current trajectory supports sustained production throughput.',
-    severity: 'normal',
-  };
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const API = 'http://127.0.0.1:8000';
-const MAX_TREND_POINTS = 40;
+const MAX_TREND_POINTS = 35;
 
-const STATUS_LABELS: Record<string, string> = {
-  running: 'RUNNING',
-  offline: 'OFFLINE',
-  bottleneck: 'BOTTLENECK',
-  warning: 'WARNING',
-  maintenance: 'MAINTENANCE',
-};
+// ─── Circular Health Score Component ──────────────────────────────────────────
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function HealthGauge({ score }: { score: number }) {
+  const radius = 38;
+  const stroke = 7;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+
+  let color = '#10b981'; // green
+  if (score < 60) color = '#ef4444'; // red
+  else if (score < 80) color = '#f59e0b'; // yellow
+
+  return (
+    <div className="health-gauge-wrap">
+      <svg height={radius * 2} width={radius * 2} className="health-gauge-svg">
+        <circle
+          stroke="#1e293b"
+          fill="transparent"
+          strokeWidth={stroke}
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+        <circle
+          stroke={color}
+          fill="transparent"
+          strokeWidth={stroke}
+          strokeDasharray={`${circumference} ${circumference}`}
+          style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.8s ease, stroke 0.5s ease' }}
+          strokeLinecap="round"
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+      </svg>
+      <div className="health-gauge-val">
+        <span className="health-gauge-num" style={{ color }}>{score}%</span>
+        <span className="health-gauge-label">HEALTH</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Application Component ───────────────────────────────────────────────
 
 export default function App() {
   const [data, setData] = useState<FactoryState | null>(null);
   const [connected, setConnected] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [error, setError] = useState('');
-  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
-  const prevProductionRef = useRef(0);
+  const [trendData, setTrendData] = useState<TelemetryTrendPoint[]>([]);
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [presentationMode, setPresentationMode] = useState(false);
 
-  // ── Polling ────────────────────────────────────────────────────────────────
-
+  // ── Polling State ──────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     try {
       const response = await fetch(`${API}/api/factory/state`);
@@ -163,39 +156,37 @@ export default function App() {
       setConnected(true);
       setError('');
 
-      // Append trend point
+      // Add to telemetry trend
       const now = new Date();
-      const label = now.toLocaleTimeString();
-      const delta = Math.max(0, json.total_production - prevProductionRef.current);
-      prevProductionRef.current = json.total_production;
+      const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const m2 = json.machines?.find((m) => m.id === 'M2');
+
       setTrendData((prev) => {
-        const next: TrendPoint = {
-          t: label,
+        const nextPoint: TelemetryTrendPoint = {
+          t: timeLabel,
           production: json.total_production,
-          rate: delta,
+          rate: json.production_rate,
           utilization: parseFloat(json.average_utilization.toFixed(1)),
-          downtime: json.total_downtime,
+          m2_temp: m2?.temperature ? parseFloat(m2.temperature.toFixed(1)) : 52.0,
+          m2_vib: m2?.vibration ? parseFloat(m2.vibration.toFixed(2)) : 2.1,
         };
-        const updated = [...prev, next];
-        return updated.length > MAX_TREND_POINTS
-          ? updated.slice(updated.length - MAX_TREND_POINTS)
-          : updated;
+        const updated = [...prev, nextPoint];
+        return updated.length > MAX_TREND_POINTS ? updated.slice(updated.length - MAX_TREND_POINTS) : updated;
       });
     } catch (err) {
       console.error('Failed to fetch factory state:', err);
       setConnected(false);
-      setError('Unable to connect to backend API');
+      setError('Unable to connect to FactoryMind AI backend API');
     }
   }, []);
 
   useEffect(() => {
     load();
-    const interval = window.setInterval(load, 1500);
+    const interval = window.setInterval(load, 1200);
     return () => window.clearInterval(interval);
   }, [load]);
 
-  // ── Action helper ──────────────────────────────────────────────────────────
-
+  // ── Action Dispatcher ──────────────────────────────────────────────────────
   const post = useCallback(async (path: string, body?: unknown) => {
     setLoadingAction(true);
     setError('');
@@ -209,59 +200,60 @@ export default function App() {
       await load();
     } catch (err) {
       console.error('Action failed:', err);
-      setError('Action failed. Check backend API.');
+      setError('Action failed. Verify backend API connection.');
     } finally {
       setLoadingAction(false);
     }
   }, [load]);
 
-  // ── Cycle speed ────────────────────────────────────────────────────────────
-
+  // Cycle speed adjuster
   const handleSpeedChange = (machineId: string, currentTime: number, delta: number) => {
     const newTime = Math.max(0.5, Math.min(30, Math.round((currentTime + delta) * 10) / 10));
     post(`/api/factory/machine/${machineId}/speed`, { processing_time: newTime });
   };
 
-  // ── Loading screen ─────────────────────────────────────────────────────────
+  // ── Derived state ──────────────────────────────────────────────────────────
+  const healthScore = data?.factory_health ?? 96;
+  const activeMachineCount = data?.active_machines ?? 5;
+  const isolatedMachine = useMemo(
+    () => data?.machines?.find((m) => m.isolated || m.status === 'malfunction'),
+    [data?.machines]
+  );
+  const aiDiag = data?.ai_diagnosis;
+  const repair = data?.repair_status;
 
+  // ── Connection Loading Screen ──────────────────────────────────────────────
   if (!data && !connected) {
     return (
       <main className="loading-screen">
         <div className="spinner" />
-        <h1>Connecting to FactoryMind AI Digital Twin...</h1>
-        <p>Ensure backend API is live at {API}</p>
+        <h1 style={{ color: '#06b6d4', marginTop: 16 }}>Connecting to FactoryMind AI Digital Twin...</h1>
+        <p style={{ color: '#94a3b8' }}>Establishing live link to simulated industrial engine at {API}</p>
         {error && <p className="error-message">{error}</p>}
       </main>
     );
   }
 
-  // ── Derived values ─────────────────────────────────────────────────────────
-
-  const insight = data ? generateInsight(data) : null;
-  const activeMachineCount = data?.active_machines ?? data?.machines.filter((m) => m.status !== 'offline').length ?? 0;
-  const currentBottleneckLabel = data?.bottleneck
-    ? `${data.bottleneck.machine_id} — ${data.bottleneck.machine_name}`
-    : 'None';
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
-    <main>
+    <main className={presentationMode ? 'presentation-mode' : ''}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header>
-        <div>
+      {/* ── Top Command Center Bar ─────────────────────────────────────────── */}
+      <header className="command-header">
+        <div className="brand-zone">
           <div className="badge-row">
-            <small>INDUSTRIAL DIGITAL TWIN — JARVIS SI-02</small>
+            <span className="badge-si">JARVIS SI-02</span>
             <span className={`status-pill ${connected ? 'online' : 'offline'}`}>
-              {connected ? '● LIVE ENGINE' : '○ RECONNECTING'}
+              {connected ? '● DIGITAL TWIN ENGINE LIVE' : '○ RECONNECTING'}
+            </span>
+            <span className="ai-status-pill">
+              AI ENGINE: {isolatedMachine ? 'AUTONOMOUS INTERVENTION' : 'CONTINUOUS MONITORING'}
             </span>
             {data?.demo_mode && (
-              <span className="demo-badge">⚡ DEMO MODE ACTIVE</span>
+              <span className="demo-badge">⚡ AUTONOMOUS DEMO RUNNING: {data?.demo_phase?.toUpperCase()}</span>
             )}
           </div>
           <h1>FactoryMind AI</h1>
-          <p>Production Line Bottleneck Intelligence &amp; Predictive Operations</p>
+          <p className="subtitle">High-Fidelity Autonomous Digital Twin &amp; Predictive Self-Healing Smart Factory</p>
         </div>
 
         <div className="header-actions">
@@ -270,31 +262,37 @@ export default function App() {
             disabled={loadingAction}
             onClick={() => post(`/api/factory/${data?.factory_running ? 'stop' : 'start'}`)}
           >
-            {data?.factory_running ? 'Pause Line' : 'Start Line'}
+            {data?.factory_running ? '⏸ Pause Line' : '▶ Start Line'}
           </button>
-          <button className="btn-reset" disabled={loadingAction} onClick={() => post('/api/factory/reset')}>
-            Reset Factory
+          <button
+            className="btn-reset"
+            disabled={loadingAction}
+            onClick={() => post('/api/factory/reset')}
+          >
+            ↺ Reset Factory
+          </button>
+          <button
+            className={`btn-presentation ${presentationMode ? 'active' : ''}`}
+            onClick={() => setPresentationMode(!presentationMode)}
+            title="Toggle high-contrast full-stage presentation mode"
+          >
+            {presentationMode ? 'Exit Presentation' : '🖥 Presentation Mode'}
           </button>
         </div>
       </header>
 
       {error && <div className="error-message">{error}</div>}
 
-      {/* ── Demo Control Bar ────────────────────────────────────────────────── */}
-      <div className="demo-bar">
-        <span className="demo-bar-label">Demo Controls</span>
-        <div className="demo-bar-buttons">
-          <button
-            className="demo-btn"
-            disabled={loadingAction}
-            onClick={() => post('/api/factory/simulate/bottleneck')}
-            title="Force a bottleneck on the highest-queue machine"
-          >
-            ⚠ Simulate Bottleneck
-          </button>
+      {/* ── One-Click Autonomous Demo Controller Bar ──────────────────────── */}
+      <div className="demo-controller-bar">
+        <div className="demo-meta">
+          <span className="demo-title">AUTONOMOUS FACTORY DEMO CONTROLLER</span>
+          <span className="demo-subtitle">Demonstrates full lifecycle: Drift → Anomaly → Diagnosis → Isolation → Repair → Validation → Recovery</span>
+        </div>
+        <div className="demo-actions">
           {data?.demo_mode ? (
             <button
-              className="demo-btn demo-btn-stop"
+              className="demo-btn-main demo-btn-stop"
               disabled={loadingAction}
               onClick={() => post('/api/factory/demo/stop')}
             >
@@ -302,274 +300,409 @@ export default function App() {
             </button>
           ) : (
             <button
-              className="demo-btn demo-btn-start"
+              className="demo-btn-main demo-btn-start"
               disabled={loadingAction}
               onClick={() => post('/api/factory/demo/start')}
             >
-              ▶ Start Demo
+              ▶ START AUTONOMOUS FACTORY DEMO
             </button>
           )}
+          <button
+            className="demo-btn-sub"
+            disabled={loadingAction}
+            onClick={() => post('/api/factory/demo/skip-failure')}
+            title="Jump directly to M2 Drilling anomaly and safety isolation"
+          >
+            ⚡ Skip to Malfunction
+          </button>
+          <button
+            className="demo-btn-sub"
+            disabled={loadingAction}
+            onClick={() => post('/api/factory/demo/skip-repair')}
+            title="Launch autonomous maintenance robot and repair sequence"
+          >
+            🔧 Skip to Repair
+          </button>
+          <button
+            className="demo-btn-sub"
+            disabled={loadingAction}
+            onClick={() => post('/api/factory/demo/reset')}
+          >
+            ↺ Reset Demo
+          </button>
         </div>
       </div>
 
-      {/* ── KPI Cards (6) ──────────────────────────────────────────────────── */}
-      <section className="kpis kpis-6">
-        <article>
-          <span>Total Production</span>
-          <strong>{data?.total_production ?? 0} units</strong>
+      {/* ── Emergency Safety Isolation Banner ─────────────────────────────── */}
+      {isolatedMachine && (
+        <div className="safety-isolation-banner">
+          <div className="safety-badge">AUTOMATIC SAFETY ISOLATION ACTIVE</div>
+          <div className="safety-content">
+            <strong>Machine {isolatedMachine.id} ({isolatedMachine.name}) Decoupled from Production Line</strong>
+            <span>{isolatedMachine.isolation_reason ?? 'Vibration & thermal threshold violation. Material feed diverted.'}</span>
+          </div>
+          <button
+            className="safety-recover-btn"
+            disabled={loadingAction}
+            onClick={() => post(`/api/factory/recover/${isolatedMachine.id}`)}
+          >
+            Recover Machine Manually
+          </button>
+        </div>
+      )}
+
+      {/* ── Top Industrial KPIs + Factory Health Dial ──────────────────────── */}
+      <section className="kpis-bar">
+        {/* Animated Health Gauge */}
+        <article className="kpi-card health-card">
+          <HealthGauge score={healthScore} />
+          <div className="health-meta">
+            <span className="kpi-label">FACTORY HEALTH SCORE</span>
+            <strong className="kpi-num">{healthScore}%</strong>
+            <span className="kpi-subtext">
+              {healthScore > 85 ? 'Line Operating at Optimal Efficiency' : healthScore > 65 ? 'Warning: Sensor Drift Detected' : 'CRITICAL: Machine Isolated'}
+            </span>
+          </div>
         </article>
-        <article>
-          <span>Production Rate</span>
-          <strong>{data?.production_rate ?? 0} parts/min</strong>
+
+        <article className="kpi-card">
+          <span className="kpi-label">Total Production</span>
+          <strong className="kpi-num">{data?.total_production ?? 0} <small>units</small></strong>
+          <span className="kpi-subtext">Continuous Output Flow</span>
         </article>
-        <article>
-          <span>Line Utilization</span>
-          <strong>{data?.average_utilization?.toFixed(1) ?? '0.0'}%</strong>
+
+        <article className="kpi-card">
+          <span className="kpi-label">Production Rate</span>
+          <strong className="kpi-num">{data?.production_rate?.toFixed(1) ?? '42.0'} <small>parts/min</small></strong>
+          <span className="kpi-subtext">{isolatedMachine ? 'Reduced due to isolation' : 'Nominal throughput'}</span>
         </article>
-        <article>
-          <span>Accumulated Downtime</span>
-          <strong>{data?.total_downtime ?? 0}s</strong>
+
+        <article className="kpi-card">
+          <span className="kpi-label">Line Utilization</span>
+          <strong className="kpi-num">{data?.average_utilization?.toFixed(1) ?? '0.0'}%</strong>
+          <span className="kpi-subtext">Across 5 CNC/Robotic cells</span>
         </article>
-        <article>
-          <span>Active Machines</span>
-          <strong className={activeMachineCount < (data?.machines.length ?? 5) ? 'kpi-warn' : ''}>
-            {activeMachineCount} / {data?.machines.length ?? 5}
+
+        <article className="kpi-card">
+          <span className="kpi-label">Accumulated Downtime</span>
+          <strong className={`kpi-num ${data?.total_downtime ? 'alert-color' : ''}`}>
+            {data?.total_downtime ?? 0}s
           </strong>
+          <span className="kpi-subtext">Total line interruption</span>
         </article>
-        <article>
-          <span>Current Bottleneck</span>
-          <strong className={data?.bottleneck ? 'kpi-alert' : 'kpi-ok'}>
-            {currentBottleneckLabel}
+
+        <article className="kpi-card">
+          <span className="kpi-label">Active Machines</span>
+          <strong className={`kpi-num ${activeMachineCount < 5 ? 'warn-color' : ''}`}>
+            {activeMachineCount} / 5
           </strong>
+          <span className="kpi-subtext">{5 - activeMachineCount} currently offline/isolated</span>
         </article>
       </section>
 
-      {/* ── Production Line Topology ────────────────────────────────────────── */}
-      <section className="panel">
+      {/* ── AI Diagnosis & Autonomous Repair Interactive Grid ─────────────── */}
+      {(aiDiag?.active || repair?.active) && (
+        <section className="autonomous-ops-grid">
+
+          {/* AI-Assisted Diagnostic Engine Panel */}
+          {aiDiag?.active && (
+            <div className="diag-panel">
+              <div className="panel-tag">AI-ASSISTED DIAGNOSTIC SIMULATION</div>
+              <div className="diag-header">
+                <div className="diag-title">
+                  <span className="pulse-icon">◆</span>
+                  <h3>FACTORYMIND AI — DIAGNOSTIC ENGINE</h3>
+                </div>
+                <span className="confidence-pill">{aiDiag.confidence}% CONFIDENCE</span>
+              </div>
+
+              <div className="diag-steps">
+                <div className="diag-step-item completed">✓ Telemetry Analyzed</div>
+                <div className="diag-step-item completed">✓ Harmonics Correlated</div>
+                <div className="diag-step-item active">▶ Root Cause Identified</div>
+              </div>
+
+              <div className="diag-body">
+                <div className="diag-row">
+                  <span className="diag-key">ROOT CAUSE:</span>
+                  <span className="diag-val root-cause-text">{aiDiag.root_cause}</span>
+                </div>
+                <div className="diag-details-grid">
+                  <div>
+                    <span className="diag-key">AFFECTED STAGE:</span>
+                    <p className="diag-val">{aiDiag.affected_stage}</p>
+                  </div>
+                  <div>
+                    <span className="diag-key">THROUGHPUT IMPACT:</span>
+                    <p className="diag-val alert-color">{aiDiag.impact_production_pct}% Production Rate</p>
+                  </div>
+                  <div>
+                    <span className="diag-key">DOWNSTREAM BUFFER:</span>
+                    <p className="diag-val">{aiDiag.downstream_impact}</p>
+                  </div>
+                  <div>
+                    <span className="diag-key">RECOMMENDED ACTION:</span>
+                    <p className="diag-val action-text">{aiDiag.recommended_action}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Autonomous Maintenance Tracker Panel */}
+          {repair?.active && (
+            <div className="repair-panel">
+              <div className="panel-tag">AUTONOMOUS REPAIR WORKFLOW</div>
+              <div className="repair-header">
+                <div>
+                  <h3>AUTONOMOUS MAINTENANCE UNIT — {repair.target_machine}</h3>
+                  <span className="repair-task-name">Current Task: {repair.current_task ?? 'Executing Diagnostics'}</span>
+                </div>
+                <span className="repair-pct">{repair.progress}%</span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="repair-progress-track">
+                <div
+                  className="repair-progress-bar"
+                  style={{ width: `${repair.progress}%` }}
+                />
+              </div>
+
+              {/* Subtask checklist */}
+              <div className="repair-task-list">
+                {repair.tasks?.map((task, idx) => (
+                  <div key={idx} className={`repair-task-card ${task.status}`}>
+                    <div className="task-info">
+                      <span className="task-status-indicator">
+                        {task.status === 'completed' ? '✓' : task.status === 'in_progress' ? '▶' : '○'}
+                      </span>
+                      <span className="task-name">{task.name}</span>
+                    </div>
+                    <span className="task-pct">{task.progress}%</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Validation Results Matrix */}
+              {repair.validation_results && (
+                <div className="validation-box">
+                  <span className="val-title">AUTOMATED SENSOR VALIDATION CHECK</span>
+                  <div className="val-grid">
+                    {Object.entries(repair.validation_results).map(([param, res]) => (
+                      <div key={param} className="val-item">
+                        <span className="val-param">{param.toUpperCase()}</span>
+                        <span className={`val-badge ${res.includes('NORMAL') ? 'pass' : 'checking'}`}>{res}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── 3D High-Fidelity Digital Twin ─────────────────────────────────── */}
+      <Factory3D
+        machines={data?.machines ?? []}
+        repairStatus={data?.repair_status}
+        selectedMachineId={selectedMachineId}
+        onSelectMachine={setSelectedMachineId}
+        presentationMode={presentationMode}
+      />
+
+      {/* ── Real-Time Machine Sensor Matrix ────────────────────────────────── */}
+      <section className="panel sensor-matrix-section">
         <div className="panel-header">
-          <h2>Production Line Topology</h2>
-          <small>
-            {data?.factory_running ? 'STATUS: SIMULATION ACTIVE' : 'STATUS: SIMULATION PAUSED'}
-          </small>
+          <div>
+            <h2>Real-Time Industrial Sensor Telemetry</h2>
+            <p className="panel-sub">Continuous IoT monitoring: Temperature, Vibration, Motor RPM, Power, and Machine Health</p>
+          </div>
+          <span className="telemetry-badge">5 STAGES CONNECTED</span>
         </div>
 
-        <div className="machines">
-          {data?.machines?.map((machine) => {
-            const s = machine.status.toLowerCase();
-            const isOffline = s === 'offline';
-            const cardClass = ['machine', isOffline ? 'offline' : '', s === 'bottleneck' ? 'bottleneck-card' : ''].filter(Boolean).join(' ');
+        <div className="sensor-cards-grid">
+          {data?.machines?.map((m) => {
+            const isWarn = (m.temperature ?? 0) > 70 || (m.vibration ?? 0) > 4.5;
+            const isCritical = m.isolated || m.status === 'malfunction' || (m.temperature ?? 0) > 85;
 
             return (
-              <article key={machine.id} className={cardClass}>
-                <div className="machine-header">
-                  <b>{machine.id}</b>
-                  <span className={`machine-status-tag ${s}`}>
-                    {STATUS_LABELS[s] ?? s.toUpperCase()}
+              <div
+                key={m.id}
+                className={`machine-telemetry-card ${isCritical ? 'card-critical' : isWarn ? 'card-warn' : ''} ${selectedMachineId === m.id ? 'card-selected' : ''}`}
+                onClick={() => setSelectedMachineId(selectedMachineId === m.id ? null : m.id)}
+              >
+                <div className="mc-header">
+                  <div className="mc-title">
+                    <span className="mc-id">{m.id}</span>
+                    <strong>{m.name}</strong>
+                  </div>
+                  <span className={`status-tag status-${m.status.toLowerCase()} ${m.isolated ? 'status-isolated' : ''}`}>
+                    {m.isolated ? 'ISOLATED' : m.status.toUpperCase()}
                   </span>
                 </div>
 
-                {/* Status indicator dot */}
-                <div className={`status-dot-row`}>
-                  <span className={`status-dot status-dot-${s}`} />
-                  <h3>{machine.name}</h3>
-                </div>
-
-                <p>Queue: <strong>{machine.queue} parts</strong></p>
-
-                <div className="cycle-speed-control">
-                  <span className="speed-label">Cycle Speed:</span>
-                  <div className="speed-stepper">
-                    <button
-                      className="btn-step"
-                      disabled={loadingAction || machine.processing_time <= 0.5}
-                      onClick={() => handleSpeedChange(machine.id, machine.processing_time, -0.5)}
-                      title="Speed up machine cycle"
-                    >
-                      −
-                    </button>
-                    <strong className="speed-val">{machine.processing_time.toFixed(1)}s</strong>
-                    <button
-                      className="btn-step"
-                      disabled={loadingAction || machine.processing_time >= 30}
-                      onClick={() => handleSpeedChange(machine.id, machine.processing_time, 0.5)}
-                      title="Slow down machine cycle"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <p>Utilization: <strong>{machine.utilization.toFixed(1)}%</strong></p>
-                <div className="bar">
-                  <i
-                    className={`bar-fill-${s}`}
-                    style={{ width: `${Math.min(100, Math.max(0, machine.utilization))}%` }}
+                <div className="mc-health-bar">
+                  <div
+                    className="mc-health-fill"
+                    style={{
+                      width: `${m.health ?? 95}%`,
+                      background: (m.health ?? 95) > 80 ? '#10b981' : (m.health ?? 95) > 50 ? '#f59e0b' : '#ef4444',
+                    }}
                   />
                 </div>
 
-                <div className="machine-stats-row">
-                  <span>Completed: <strong>{machine.completed}</strong></span>
-                  <span>Downtime: <strong>{machine.downtime}s</strong></span>
+                <div className="sensor-readings">
+                  <div className="reading-item">
+                    <span className="read-label">TEMP</span>
+                    <strong className={`read-val ${(m.temperature ?? 0) > 75 ? 'alert-color' : ''}`}>
+                      {m.temperature?.toFixed(1) ?? '52.0'}°C
+                    </strong>
+                  </div>
+                  <div className="reading-item">
+                    <span className="read-label">VIB</span>
+                    <strong className={`read-val ${(m.vibration ?? 0) > 5.0 ? 'alert-color' : ''}`}>
+                      {m.vibration?.toFixed(2) ?? '1.80'} mm/s
+                    </strong>
+                  </div>
+                  <div className="reading-item">
+                    <span className="read-label">RPM</span>
+                    <strong className="read-val">{m.rpm ?? 1420}</strong>
+                  </div>
+                  <div className="reading-item">
+                    <span className="read-label">POWER</span>
+                    <strong className="read-val">{m.power?.toFixed(1) ?? '6.5'} kW</strong>
+                  </div>
+                  <div className="reading-item">
+                    <span className="read-label">QUEUE</span>
+                    <strong className={`read-val ${m.queue > 15 ? 'warn-color' : ''}`}>{m.queue}</strong>
+                  </div>
+                  <div className="reading-item">
+                    <span className="read-label">CYCLE</span>
+                    <strong className="read-val">{m.processing_time.toFixed(1)}s</strong>
+                  </div>
                 </div>
 
-                <button
-                  className={isOffline ? 'btn-recover' : 'btn-fail'}
-                  disabled={loadingAction}
-                  onClick={() =>
-                    post(`/api/factory/${isOffline ? 'recover' : 'failure'}/${machine.id}`)
-                  }
-                >
-                  {isOffline ? '✔ Recover Machine' : '✕ Simulate Failure'}
-                </button>
-              </article>
+                <div className="card-actions">
+                  <button
+                    className="speed-btn"
+                    disabled={loadingAction}
+                    onClick={(e) => { e.stopPropagation(); handleSpeedChange(m.id, m.processing_time, -0.5); }}
+                    title="Speed up cycle"
+                  >
+                    -0.5s
+                  </button>
+                  <button
+                    className="speed-btn"
+                    disabled={loadingAction}
+                    onClick={(e) => { e.stopPropagation(); handleSpeedChange(m.id, m.processing_time, 0.5); }}
+                    title="Slow down cycle"
+                  >
+                    +0.5s
+                  </button>
+                  {m.status === 'offline' || m.isolated ? (
+                    <button
+                      className="recover-btn"
+                      disabled={loadingAction}
+                      onClick={(e) => { e.stopPropagation(); post(`/api/factory/recover/${m.id}`); }}
+                    >
+                      Recover
+                    </button>
+                  ) : (
+                    <button
+                      className="fail-btn"
+                      disabled={loadingAction}
+                      onClick={(e) => { e.stopPropagation(); post(`/api/factory/failure/${m.id}`); }}
+                      title="Trigger manual failure"
+                    >
+                      Fail
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
       </section>
 
-      {/* ── AI Insight Panel ────────────────────────────────────────────────── */}
-      {insight && (
-        <section className={`insight-panel insight-${insight.severity}`}>
-          <div className="insight-header">
-            <div>
-              <small>FACTORYMIND AI INSIGHTS — INTELLIGENT RULE-BASED RECOMMENDATION ENGINE</small>
-              <h2>{insight.title}</h2>
-            </div>
-            <span className={`insight-badge insight-badge-${insight.severity}`}>
-              {insight.severity.toUpperCase()}
-            </span>
+      {/* ── Real-Time Telemetry Trend & Charts Grid ────────────────────────── */}
+      <section className="charts-grid">
+        {/* Sensor Drift Tracking Chart (M2 Temp & Vibration) */}
+        <div className="panel chart-card">
+          <div className="chart-header">
+            <h3>Industrial Sensor Drift Monitoring (M2 Drilling)</h3>
+            <span className="chart-sub">Real-time tracking of thermal rise and bearing vibration</span>
           </div>
-
-          <div className="insight-machine">
-            <span className={`insight-machine-dot status-dot-${data?.machines.find(m => `${m.id} — ${m.name}` === insight.machine)?.status ?? 'running'}`} />
-            <strong>{insight.machine}</strong>
-          </div>
-
-          <div className="insight-grid">
-            <div className="insight-row">
-              <span className="insight-label">Current Issue</span>
-              <p className="insight-value">{insight.issue}</p>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Operational Impact</span>
-              <p className="insight-value">{insight.impact}</p>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Recommended Action</span>
-              <p className="insight-value insight-action">{insight.action}</p>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Expected Improvement</span>
-              <p className="insight-value">{insight.improvement}</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Bottleneck Alert ────────────────────────────────────────────────── */}
-      {data?.bottleneck && (
-        <section className={`alert ${data.bottleneck.severity}`}>
-          <div className="alert-header">
-            <small>
-              AI-ASSISTED BOTTLENECK DETECTION [{data.bottleneck.severity.toUpperCase()}]
-            </small>
-            <span className="score-badge">Impact Score: {data.bottleneck.score}</span>
-          </div>
-          <h2>
-            {data.bottleneck.machine_id} — {data.bottleneck.machine_name}
-          </h2>
-          <p className="reason">
-            <strong>Root Cause:</strong> {data.bottleneck.reason}
-          </p>
-          <p className="recommendation">
-            <strong>Recommended Action:</strong> {data.bottleneck.recommended_action}
-          </p>
-        </section>
-      )}
-
-      {/* ── Production Trend Chart ──────────────────────────────────────────── */}
-      <section className="panel chart-panel">
-        <div className="panel-header">
-          <h2>Production Trend</h2>
-          <small>LIVE — last {trendData.length} samples</small>
+          <ResponsiveContainer width="100%" height={210}>
+            <LineChart data={trendData}>
+              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+              <XAxis dataKey="t" stroke="#64748b" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" stroke="#ef4444" domain={[30, 95]} tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" domain={[0, 10]} tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6 }}
+                labelStyle={{ color: '#94a3b8' }}
+              />
+              <Line yAxisId="left" type="monotone" dataKey="m2_temp" name="Temp (°C)" stroke="#ef4444" strokeWidth={2} dot={false} />
+              <Line yAxisId="right" type="monotone" dataKey="m2_vib" name="Vibration (mm/s)" stroke="#f59e0b" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        {trendData.length < 2 ? (
-          <p className="chart-placeholder">Collecting data… start the factory simulation to see the trend.</p>
-        ) : (
-          <div className="chart-grid">
-            {/* Production + Utilization */}
-            <div className="chart-block">
-              <p className="chart-title">Cumulative Production &amp; Utilization</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradUtil" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 10 }} interval="preserveStartEnd" />
-                  <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }} unit="%" />
-                  <Tooltip
-                    contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: '#94a3b8' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-                  <Area yAxisId="left" type="monotone" dataKey="production" name="Total Production" stroke="#22d3ee" fill="url(#gradProd)" dot={false} strokeWidth={2} />
-                  <Line yAxisId="right" type="monotone" dataKey="utilization" name="Avg Utilization %" stroke="#22c55e" dot={false} strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Rate + Downtime */}
-            <div className="chart-block">
-              <p className="chart-title">Production Rate &amp; Downtime</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 10 }} interval="preserveStartEnd" />
-                  <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 10 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 10 }} unit="s" />
-                  <Tooltip
-                    contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: '#94a3b8' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-                  <Bar yAxisId="left" dataKey="rate" name="Rate (parts/poll)" fill="#38bdf8" radius={[2, 2, 0, 0]} maxBarSize={16} />
-                  <Line yAxisId="right" type="monotone" dataKey="downtime" name="Downtime (s)" stroke="#f87171" dot={false} strokeWidth={2} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+        {/* Production & Line Utilization Trend */}
+        <div className="panel chart-card">
+          <div className="chart-header">
+            <h3>Cumulative Output &amp; Line Utilization</h3>
+            <span className="chart-sub">System throughput with dynamic rate stabilization</span>
           </div>
-        )}
+          <ResponsiveContainer width="100%" height={210}>
+            <AreaChart data={trendData}>
+              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+              <XAxis dataKey="t" stroke="#64748b" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6 }}
+                labelStyle={{ color: '#94a3b8' }}
+              />
+              <Area type="monotone" dataKey="production" name="Total Production" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.2} />
+              <Area type="monotone" dataKey="utilization" name="Avg Utilization (%)" stroke="#10b981" fill="#10b981" fillOpacity={0.15} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </section>
 
-      {/* ── Telemetry Event Stream ──────────────────────────────────────────── */}
-      {data?.event_log && data.event_log.length > 0 && (
-        <section className="panel event-log-panel">
-          <h2>Telemetry Event Stream</h2>
-          <ul className="event-list">
-            {[...data.event_log].reverse().map((event, index) => (
-              <li key={`${event.timestamp}-${index}`} className={`event-item ${event.type}`}>
-                <span className="event-time">
-                  {new Date(event.timestamp).toLocaleTimeString()}
-                </span>
-                <span className="event-msg">{event.message}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* ── Factory Event Timeline ─────────────────────────────────────────── */}
+      <section className="panel timeline-section">
+        <div className="panel-header">
+          <h2>Factory Event Timeline</h2>
+          <span className="timeline-count">{data?.event_log?.length ?? 0} Recorded Events</span>
+        </div>
 
-      {/* ── 3D Digital Twin ─────────────────────────────────────────────────── */}
-      <Factory3D machines={data?.machines ?? []} />
+        <div className="timeline-container">
+          {data?.event_log && data.event_log.length > 0 ? (
+            data.event_log.slice().reverse().map((ev, idx) => (
+              <div key={idx} className="timeline-row">
+                <div className="time-col">
+                  <span className="time-badge">
+                    {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+                <div className="timeline-connector">
+                  <div className={`timeline-dot dot-${ev.type}`} />
+                  {idx < (data.event_log?.length ?? 0) - 1 && <div className="timeline-line" />}
+                </div>
+                <div className="event-content">
+                  {ev.phase && <span className="phase-pill">{ev.phase}</span>}
+                  <span className="event-msg">{ev.message}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="timeline-empty">All factory stages running nominally. No critical events logged.</div>
+          )}
+        </div>
+      </section>
 
     </main>
   );
