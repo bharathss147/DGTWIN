@@ -19,5 +19,14 @@
     "three": "^0.186.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.14"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "^0.186.0"
+  },
+  "overrides": {
+    "@types/react": "$@types/react",
+    "@types/react-dom": "$@types/react-dom"
   }
 }
