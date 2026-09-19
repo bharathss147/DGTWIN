@@ -1251,86 +1251,7 @@ function AutonomousMaintenanceRobot({ repairStatus }: { repairStatus?: RepairSta
   );
 }
 
-// ─── Simplified Factory Personnel (Industrial Workers) ────────────────────────
 
-function FactoryPersonnel() {
-  return (
-    <group>
-      {/* Worker 1: Quality Inspector near M4 */}
-      <WorkerFigure position={[4.2, 0, 2.2]} rotationY={-Math.PI / 2} vestColor="#f59e0b" label="INSPECTOR" />
-      {/* Worker 2: Packaging Technician near M5 */}
-      <WorkerFigure position={[8.5, 0, 2.0]} rotationY={Math.PI / 2} vestColor="#ea580c" label="LOGISTICS" />
-      {/* Worker 3: Maintenance Technician at Service Bay */}
-      <WorkerFigure position={[-1.8, 0, 5.8]} rotationY={0} vestColor="#f59e0b" label="MAINTENANCE" />
-      {/* Worker 4: Control Desk Operator on Mezzanine */}
-      <WorkerFigure position={[1.8, 3.2, -13.5]} rotationY={Math.PI} vestColor="#f59e0b" label="OPERATOR" />
-    </group>
-  );
-}
-
-function WorkerFigure({
-  position,
-  rotationY = 0,
-  vestColor = '#f59e0b',
-  label,
-}: {
-  position: [number, number, number];
-  rotationY?: number;
-  vestColor?: string;
-  label?: string;
-}) {
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {/* Boots */}
-      <mesh position={[-0.1, 0.1, 0]}>
-        <boxGeometry args={[0.12, 0.2, 0.2]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      <mesh position={[0.1, 0.1, 0]}>
-        <boxGeometry args={[0.12, 0.2, 0.2]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      {/* Blue Work Trousers */}
-      <mesh position={[-0.1, 0.45, 0]}>
-        <cylinderGeometry args={[0.07, 0.07, 0.5, 8]} />
-        <meshStandardMaterial color="#1e3a8a" />
-      </mesh>
-      <mesh position={[0.1, 0.45, 0]}>
-        <cylinderGeometry args={[0.07, 0.07, 0.5, 8]} />
-        <meshStandardMaterial color="#1e3a8a" />
-      </mesh>
-      {/* Torso & High-Visibility Vest */}
-      <mesh position={[0, 0.95, 0]}>
-        <boxGeometry args={[0.38, 0.55, 0.22]} />
-        <meshStandardMaterial color={vestColor} roughness={0.4} />
-      </mesh>
-      {/* Reflective Silver Stripes on Vest */}
-      <mesh position={[0, 0.95, 0.115]}>
-        <planeGeometry args={[0.34, 0.06]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.2} metalness={0.8} />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 1.35, 0]}>
-        <sphereGeometry args={[0.11, 12, 12]} />
-        <meshStandardMaterial color="#fcd34d" roughness={0.6} />
-      </mesh>
-      {/* White Safety Hard Hat */}
-      <mesh position={[0, 1.45, 0]}>
-        <cylinderGeometry args={[0.14, 0.16, 0.1, 12]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.3} />
-      </mesh>
-      {/* Arms */}
-      <mesh position={[-0.23, 0.95, 0]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.48, 8]} />
-        <meshStandardMaterial color="#1e3a8a" />
-      </mesh>
-      <mesh position={[0.23, 0.95, 0]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.48, 8]} />
-        <meshStandardMaterial color="#1e3a8a" />
-      </mesh>
-    </group>
-  );
-}
 
 // ─── Machine Node Assembly with Digital HUD Labels ────────────────────────────
 
@@ -1604,7 +1525,6 @@ export default function Factory3D({
           <WarehouseStorageZones />
           <ConveyorLine machines={machines} animate={animateConveyor} />
           <AutonomousMaintenanceRobot repairStatus={repairStatus} />
-          <FactoryPersonnel />
 
           {MACHINE_CONFIGS.map((cfg) => (
             <MachineStationAssembly
